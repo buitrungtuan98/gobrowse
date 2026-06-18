@@ -22,6 +22,11 @@ func ComputeLayout(dom *gcc.DOMTree, css *gcc.CSSOMTree) (*gcc.LayoutTree, error
 // computeNode recursively builds the layout structure.
 
 // Inheritable properties
+type childResult struct {
+	Index  int
+	Layout *gcc.LayoutTree
+}
+
 var inheritable = map[string]bool{
 	"color":       true,
 	"font-family": true,
@@ -139,7 +144,35 @@ func computeNode(domNode *gcc.DOMNode, css *gcc.CSSOMTree, currentX, currentY fl
 		layout.H = fontSize * 1.2
 	}
 
-	// 3. Children Flow (Block vs Inline flow)
+	// 3. Children Flow (Parallel computation using Channels)
+	// We compute the raw intrinsic dimensions of all children concurrently.
+	// We CANNOT finalize their X,Y positions in parallel because Flow Layout depends on previous siblings.
+	// But we CAN parallelize the heavy DOM evaluation, CSS matching, and intrinsic width/height calcs.
+
+	childCount := len(domNode.Children)
+	results := make(chan childResult, childCount)
+
+	for i, child := range domNode.Children {
+		go func(idx int, c *gcc.DOMNode) {
+			// Compute layout independently (assuming relative X=0, Y=0 initially)
+			// Pass available width down (respecting parent padding/borders in a real engine)
+			cLayout := computeNode(c, css, 0, 0, layout.W, layout.Styles)
+			results <- childResult{Index: idx, Layout: cLayout}
+		}(i, child)
+	}
+
+	// Collect computed children and store them in correct order
+	computedChildren := make([]*gcc.LayoutTree, childCount)
+	for i := 0; i < childCount; i++ {
+		res := <-results
+		computedChildren[res.Index] = res.Layout
+	}
+	close(results)
+
+	// 4. Sequential Flow Positioning
+	// Now that heavy lifting (dimension/css calculation) is done concurrently,
+	// we sequence their X,Y bounds quickly on the main routine.
+
 	childX := currentX
 	childY := currentY
 	maxInlineHeight := 0.0
@@ -150,9 +183,7 @@ func computeNode(domNode *gcc.DOMNode, css *gcc.CSSOMTree, currentX, currentY fl
 		flexDirection = "row" // default flex direction
 	}
 
-	for _, child := range domNode.Children {
-		// Pass available width down (respecting parent padding/borders in a real engine)
-		childLayout := computeNode(child, css, childX, childY, layout.W, layout.Styles)
+	for _, childLayout := range computedChildren {
 		if childLayout != nil {
 			layout.Children = append(layout.Children, childLayout)
 
@@ -160,9 +191,13 @@ func computeNode(domNode *gcc.DOMNode, css *gcc.CSSOMTree, currentX, currentY fl
 
 			if isFlex {
 				if flexDirection == "row" {
-					// Flex Row: stack horizontally regardless of display type
+					// Flex Row: stack horizontally
 					childLayout.X = childX
 					childLayout.Y = currentY
+
+					// Recursively offset any deep children inside this container due to positional shifting
+					offsetSubTree(childLayout, childX, currentY)
+
 					childX += childLayout.W
 					if childLayout.H > layout.H {
 						layout.H = childLayout.H
@@ -171,20 +206,21 @@ func computeNode(domNode *gcc.DOMNode, css *gcc.CSSOMTree, currentX, currentY fl
 					// Flex Column: stack vertically
 					childLayout.X = currentX
 					childLayout.Y = childY
+					offsetSubTree(childLayout, currentX, childY)
 					childY += childLayout.H
 				}
 			} else if childDisplay == "inline" {
-				// Inline Formatting Context: Wrap text/elements horizontally
+				// Inline Formatting Context: Wrap horizontally
 				if childX+childLayout.W > currentX+layout.W && layout.W > 0 {
-					// Line break
 					childX = currentX
 					childY += maxInlineHeight
 					maxInlineHeight = 0
-
-					// Reposition this child on the new line
-					childLayout.X = childX
-					childLayout.Y = childY
 				}
+
+				childLayout.X = childX
+				childLayout.Y = childY
+				offsetSubTree(childLayout, childX, childY)
+
 				childX += childLayout.W
 				if childLayout.H > maxInlineHeight {
 					maxInlineHeight = childLayout.H
@@ -192,15 +228,14 @@ func computeNode(domNode *gcc.DOMNode, css *gcc.CSSOMTree, currentX, currentY fl
 			} else {
 				// Block Formatting Context: Stack vertically
 				if childX > currentX {
-					// Preceding inline elements finish their line
 					childY += maxInlineHeight
 					childX = currentX
 					maxInlineHeight = 0
 				}
 
-				// Re-adjust block element's Y if preceded by inline
 				childLayout.X = currentX
 				childLayout.Y = childY
+				offsetSubTree(childLayout, currentX, childY)
 
 				childY += childLayout.H
 			}
@@ -245,4 +280,17 @@ func HitTest(layout *gcc.LayoutTree, x, y float64) *gcc.LayoutTree {
 	}
 
 	return nil
+}
+
+// offsetSubTree recursively shifts the physical coordinates of a tree once
+// its parent's flow position has been finalized.
+func offsetSubTree(layout *gcc.LayoutTree, dX, dY float64) {
+	if layout == nil {
+		return
+	}
+	for _, child := range layout.Children {
+		child.X += dX
+		child.Y += dY
+		offsetSubTree(child, dX, dY)
+	}
 }
