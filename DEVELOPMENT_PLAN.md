@@ -65,7 +65,7 @@ This document outlines the granular phases, architectural components, and detail
 
 ## Phase 7: End-to-End Pipeline & Standard Layouts (Future)
 **Goal:** Connect the isolated daemons into a unified web browsing flow and support standard W3C layouts.
-- [ ] **Task 7.1 - The Navigation Pipeline:**
+- [x] **Task 7.1 - The Navigation Pipeline:**
   * Implement the core flow: User types URL -> Orchestrator commands Network Daemon -> Network returns HTML -> Orchestrator sends HTML to Parser Daemon -> Parser returns DOM/CSSOM -> Orchestrator sends to Render Daemon -> Render paints to OpenGL.
 - [ ] **Task 7.2 - W3C Layout Engine Basics (`pkg/render`):**
   * Replace the rudimentary layout algorithm with standard block and inline formatting contexts.

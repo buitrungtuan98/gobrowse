@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package api;
+
+option go_package = "github.com/go-chromium-core/gcc/api";
+
+service ParserService {
+  rpc ParseHTML (ParseRequest) returns (ParseHTMLResponse);
+  rpc ParseCSS (ParseRequest) returns (ParseCSSResponse);
+}
+
+message ParseRequest {
+  bytes payload = 1;
+}
+
+message ParseHTMLResponse {
+  string dom_payload = 1; // JSON serialized DOMTree
+  string error_message = 2;
+}
+
+message ParseCSSResponse {
+  string cssom_payload = 1; // JSON serialized CSSOMTree
+  string error_message = 2;
+}

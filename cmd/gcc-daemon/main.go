@@ -8,10 +8,13 @@ import (
 	"net"
 	"net/http"
 
+	"bytes"
+	"encoding/json"
 	"github.com/go-chromium-core/gcc"
 	"github.com/go-chromium-core/gcc/api"
 	"github.com/go-chromium-core/gcc/pkg/javascript"
 	"github.com/go-chromium-core/gcc/pkg/network"
+	"github.com/go-chromium-core/gcc/pkg/parser"
 	"github.com/go-chromium-core/gcc/pkg/render"
 	"google.golang.org/grpc"
 )
@@ -92,6 +95,32 @@ func (w *JSServerWrapper) DispatchEvent(ctx context.Context, req *api.EventReque
 	return &api.EventResponse{Success: true}, nil
 }
 
+// ParserServerWrapper wraps the pkg implementation
+type ParserServerWrapper struct {
+	api.UnimplementedParserServiceServer
+	stack *parser.ParserStack
+}
+
+func (w *ParserServerWrapper) ParseHTML(ctx context.Context, req *api.ParseRequest) (*api.ParseHTMLResponse, error) {
+	dom, err := w.stack.ParseHTML(bytes.NewReader(req.Payload))
+	if err != nil {
+		return &api.ParseHTMLResponse{ErrorMessage: err.Error()}, nil
+	}
+
+	payload, _ := json.Marshal(dom)
+	return &api.ParseHTMLResponse{DomPayload: string(payload)}, nil
+}
+
+func (w *ParserServerWrapper) ParseCSS(ctx context.Context, req *api.ParseRequest) (*api.ParseCSSResponse, error) {
+	cssom, err := w.stack.ParseCSS(bytes.NewReader(req.Payload))
+	if err != nil {
+		return &api.ParseCSSResponse{ErrorMessage: err.Error()}, nil
+	}
+
+	payload, _ := json.Marshal(cssom)
+	return &api.ParseCSSResponse{CssomPayload: string(payload)}, nil
+}
+
 func main() {
 	flag.Parse()
 
@@ -115,6 +144,8 @@ func main() {
 		api.RegisterNetworkServiceServer(grpcServer, &NetworkServerWrapper{stack: network.NewNetworkStack()})
 	case "renderer":
 		api.RegisterRendererServiceServer(grpcServer, &RendererServerWrapper{stack: render.NewRenderStack()})
+	case "parser":
+		api.RegisterParserServiceServer(grpcServer, &ParserServerWrapper{stack: parser.NewParserStack()})
 	case "javascript":
 		api.RegisterJavaScriptServiceServer(grpcServer, &JSServerWrapper{engine: javascript.NewGojaEngine()})
 	default:

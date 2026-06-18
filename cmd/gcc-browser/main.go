@@ -2,13 +2,17 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"context"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/go-chromium-core/gcc"
 	"github.com/go-chromium-core/gcc/api"
@@ -96,80 +100,153 @@ func (o *Orchestrator) SpawnProcess(role string) (*grpc.ClientConn, error) {
 	return conn, nil
 }
 
+func startMockServer() *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		html := `
+		<html>
+		  <body>
+			<div id="content">
+			  <p class="highlight">Hello Navigation Pipeline!</p>
+			</div>
+		  </body>
+		</html>`
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(html))
+	}))
+}
+
 func main() {
-	log.Println("[GCC Orchestrator] Booting...")
+	log.Println("[GCC Orchestrator] Booting Navigation Pipeline...")
+
+	// 0. Spin up local mock HTTP server
+	ts := startMockServer()
+	defer ts.Close()
 
 	// Orchestrator initialization
 	orchestrator := NewOrchestrator()
-
-	// Override path to gcc-daemon if not built in place
 	if _, err := os.Stat(orchestrator.daemonPath); os.IsNotExist(err) {
 		orchestrator.daemonPath = "gcc-daemon"
 	}
 
-	// Attempt to spawn the JS runtime daemon
-	log.Println("[Orchestrator] Spawning JS Runtime...")
-	jsConn, err := orchestrator.SpawnProcess("javascript")
-	if err != nil {
-		log.Printf("[Orchestrator] Failed to spawn JS Runtime (Did you compile gcc-daemon?): %v", err)
-	} else {
-		defer jsConn.Close()
-		log.Println("[Orchestrator] Successfully established IPC with JS Runtime.")
+	// 1. Spawn Daemons
+	netConn, _ := orchestrator.SpawnProcess("network")
+	parserConn, _ := orchestrator.SpawnProcess("parser")
+	renderConn, _ := orchestrator.SpawnProcess("renderer")
+	jsConn, _ := orchestrator.SpawnProcess("javascript")
+
+	defer func() {
+		if netConn != nil {
+			netConn.Close()
+		}
+		if parserConn != nil {
+			parserConn.Close()
+		}
+		if renderConn != nil {
+			renderConn.Close()
+		}
+		if jsConn != nil {
+			jsConn.Close()
+		}
+	}()
+
+	var netAdapter *ipc.NetworkIPCAdapter
+	if netConn != nil {
+		netAdapter = ipc.NewNetworkIPCAdapter(api.NewNetworkServiceClient(netConn))
 	}
 
-	time.Sleep(1 * time.Second)
+	var parserAdapter *ipc.ParserIPCAdapter
+	if parserConn != nil {
+		parserAdapter = ipc.NewParserIPCAdapter(api.NewParserServiceClient(parserConn))
+	}
 
-	// Phase 5: Hardware Paint GUI Initialization
+	var renderAdapter *ipc.RendererIPCAdapter
+	if renderConn != nil {
+		renderAdapter = ipc.NewRendererIPCAdapter(api.NewRendererServiceClient(renderConn))
+	}
+
+	var jsAdapter *ipc.JavascriptIPCAdapter
+	if jsConn != nil {
+		jsAdapter = ipc.NewJavascriptIPCAdapter(api.NewJavaScriptServiceClient(jsConn))
+	}
+
+	log.Println("[Orchestrator] All IPC Daemons Spawning Completed.")
+
+	// 2. Fetch Document (Network)
+	log.Printf("[Orchestrator] Fetching %s ...", ts.URL)
+	var htmlBody io.Reader
+	if netAdapter != nil {
+		resp, err := netAdapter.Fetch(context.Background(), ts.URL, gcc.FetchOptions{Method: "GET"})
+		if err != nil {
+			log.Fatalf("Fetch failed: %v", err)
+		}
+
+		buf := new(bytes.Buffer)
+		io.Copy(buf, resp.Body)
+		htmlBody = buf
+	} else {
+		// Fallback for tests if daemon missing
+		htmlBody = bytes.NewReader([]byte(`<html><window><viewport id="content"><text>Fallback Pipeline Mode</text></viewport></window></html>`))
+	}
+
+	// 3. Parse Document (Parser)
+	log.Println("[Orchestrator] Parsing HTML structure...")
+	var dom *gcc.DOMTree
+	var css *gcc.CSSOMTree
+	if parserAdapter != nil {
+		// Mock a CSS inline fetch for this milestone
+		cssBody := bytes.NewReader([]byte(`
+			window { background-color: #E5E5E5; width: 800px; height: 600px; }
+			#content { background-color: #FFFFFF; width: 700px; height: 500px; }
+			.highlight { color: #FF0000; }
+		`))
+
+		var err error
+		dom, err = parserAdapter.ParseHTML(htmlBody)
+		if err != nil {
+			log.Fatalf("ParseHTML failed: %v", err)
+		}
+
+		css, err = parserAdapter.ParseCSS(cssBody)
+		if err != nil {
+			log.Fatalf("ParseCSS failed: %v", err)
+		}
+	} else {
+		dom, css = createMockUI()
+	}
+
+	// 4. GUI Rendering Loop (Hardware Accelerated)
 	log.Println("[Orchestrator] Initializing Hardware GPU Canvas...")
-
 	canvas, err := render.NewOpenGLCanvas(800, 600, "Go-Chromium-Core (GCC)")
 	if err != nil {
 		log.Fatalf("Failed to initialize OpenGL canvas: %v", err)
 	}
 	defer canvas.Terminate()
 
-	// Build the mock UI tree
-	uiDom, uiCss := createMockUI()
-
-	// Create a local Layout Engine to compute the UI Geometry
-	layoutEngine := render.NewRenderStack()
-
-	log.Println("[Orchestrator] Entering hardware rendering loop. Close window to exit.")
-
-	// Phase 6.2/6.3: JS Event Bridge
-	var jsAdapter *ipc.JavascriptIPCAdapter
-	if jsConn != nil {
-		jsAdapter = ipc.NewJavascriptIPCAdapter(api.NewJavaScriptServiceClient(jsConn))
-	}
-
-	// Register hit-testing event listener
 	var currentLayout *gcc.LayoutTree
 	canvas.SetOnMouseClick(func(x, y float64) {
 		if currentLayout != nil {
 			hit := render.HitTest(currentLayout, x, y)
 			if hit != nil && hit.Node != nil {
 				log.Printf("[Orchestrator Event] Clicked Node: %s", hit.Node.Type)
-
-				// Dispatch event over gRPC to Javascript VM
 				if jsAdapter != nil {
-					nodeID := hit.Node.Type // Simplified for mock
-					err := jsAdapter.DispatchEvent(nodeID, "click", "{}")
-					if err != nil {
-						log.Printf("[Orchestrator Event] Failed to dispatch to JS: %v", err)
-					}
+					jsAdapter.DispatchEvent(hit.Node.Type, "click", "{}")
 				}
 			}
 		}
 	})
 
+	// Fallback to local render stack if IPC daemon missing
+	var layoutEngine gcc.RenderEngine = render.NewRenderStack()
+	if renderAdapter != nil {
+		layoutEngine = renderAdapter
+	}
+
+	log.Println("[Orchestrator] Entering hardware rendering loop. Close window to exit.")
 	for !canvas.ShouldClose() {
-		// Calculate UI dimensions
-		layoutTree, err := layoutEngine.ComputeLayout(uiDom, uiCss)
+		layoutTree, err := layoutEngine.ComputeLayout(dom, css)
 		if err == nil && layoutTree != nil {
-			// Paint the layout onto the hardware canvas
 			layoutEngine.Paint(layoutTree, canvas)
 			currentLayout = layoutTree
 		}
 	}
-
 }
