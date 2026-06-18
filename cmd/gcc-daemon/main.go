@@ -59,9 +59,24 @@ type RendererServerWrapper struct {
 }
 
 func (w *RendererServerWrapper) ComputeLayout(ctx context.Context, req *api.LayoutRequest) (*api.LayoutResponse, error) {
-	// Mock: decode req.DomPayload / CssPayload into trees
-	// For this milestone, we just return a stub response
-	return &api.LayoutResponse{LayoutTreePayload: "{}"}, nil
+	var dom gcc.DOMTree
+	var css gcc.CSSOMTree
+
+	if err := json.Unmarshal([]byte(req.DomPayload), &dom); err != nil {
+		return &api.LayoutResponse{ErrorMessage: "Failed to decode DOM payload"}, nil
+	}
+
+	if err := json.Unmarshal([]byte(req.CssPayload), &css); err != nil {
+		return &api.LayoutResponse{ErrorMessage: "Failed to decode CSSOM payload"}, nil
+	}
+
+	layout, err := w.stack.ComputeLayout(&dom, &css)
+	if err != nil {
+		return &api.LayoutResponse{ErrorMessage: err.Error()}, nil
+	}
+
+	layoutPayload, _ := json.Marshal(layout)
+	return &api.LayoutResponse{LayoutTreePayload: string(layoutPayload)}, nil
 }
 
 func (w *RendererServerWrapper) PaintLayout(ctx context.Context, req *api.PaintRequest) (*api.PaintResponse, error) {
