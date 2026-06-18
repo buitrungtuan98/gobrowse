@@ -9,7 +9,7 @@ import (
 )
 
 // parseHTMLNode recursively converts a standard x/net/html.Node into our custom gcc.DOMNode format.
-func parseHTMLNode(n *html.Node) *gcc.DOMNode {
+func parseHTMLNode(n *html.Node, resources *[]string) *gcc.DOMNode {
 	if n.Type == html.TextNode {
 		// Ignore empty or purely whitespace text nodes
 		data := strings.TrimSpace(n.Data)
@@ -37,8 +37,31 @@ func parseHTMLNode(n *html.Node) *gcc.DOMNode {
 		}
 
 		// Recursively parse children
+		// Resource extraction
+		if n.Data == "link" {
+			isCSS := false
+			href := ""
+			for _, a := range n.Attr {
+				if a.Key == "rel" && a.Val == "stylesheet" {
+					isCSS = true
+				}
+				if a.Key == "href" {
+					href = a.Val
+				}
+			}
+			if isCSS && href != "" {
+				*resources = append(*resources, href)
+			}
+		} else if n.Data == "img" {
+			for _, a := range n.Attr {
+				if a.Key == "src" && a.Val != "" {
+					*resources = append(*resources, a.Val)
+				}
+			}
+		}
+
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			childNode := parseHTMLNode(c)
+			childNode := parseHTMLNode(c, resources)
 			if childNode != nil {
 				node.Children = append(node.Children, childNode)
 			}
@@ -53,8 +76,31 @@ func parseHTMLNode(n *html.Node) *gcc.DOMNode {
 		root := &gcc.DOMNode{
 			Type: "document",
 		}
+		// Resource extraction
+		if n.Data == "link" {
+			isCSS := false
+			href := ""
+			for _, a := range n.Attr {
+				if a.Key == "rel" && a.Val == "stylesheet" {
+					isCSS = true
+				}
+				if a.Key == "href" {
+					href = a.Val
+				}
+			}
+			if isCSS && href != "" {
+				*resources = append(*resources, href)
+			}
+		} else if n.Data == "img" {
+			for _, a := range n.Attr {
+				if a.Key == "src" && a.Val != "" {
+					*resources = append(*resources, a.Val)
+				}
+			}
+		}
+
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			childNode := parseHTMLNode(c)
+			childNode := parseHTMLNode(c, resources)
 			if childNode != nil {
 				root.Children = append(root.Children, childNode)
 			}
@@ -72,8 +118,10 @@ func ParseHTML(r io.Reader) (*gcc.DOMTree, error) {
 		return nil, err
 	}
 
-	rootNode := parseHTMLNode(doc)
+	var resources []string
+	rootNode := parseHTMLNode(doc, &resources)
 	return &gcc.DOMTree{
-		Root: rootNode,
+		Root:      rootNode,
+		Resources: resources,
 	}, nil
 }

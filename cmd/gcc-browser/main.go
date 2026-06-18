@@ -102,11 +102,25 @@ func (o *Orchestrator) SpawnProcess(role string) (*grpc.ClientConn, error) {
 
 func startMockServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/styles.css" {
+			css := `
+				body { background-color: #EEEEEE; width: 800px; height: 600px; }
+				#content { background-color: #FFFFFF; width: 600px; height: 400px; }
+				.highlight { color: #FF0000; font-size: 24px; }
+			`
+			w.Header().Set("Content-Type", "text/css")
+			w.Write([]byte(css))
+			return
+		}
+
 		html := `
 		<html>
+		  <head>
+		    <link rel="stylesheet" href="/styles.css">
+		  </head>
 		  <body>
 			<div id="content">
-			  <p class="highlight">Hello Navigation Pipeline!</p>
+			  <p class="highlight">E2E Remote CSS Navigation Pipeline!</p>
 			</div>
 		  </body>
 		</html>`
@@ -193,25 +207,47 @@ func main() {
 	var dom *gcc.DOMTree
 	var css *gcc.CSSOMTree
 	if parserAdapter != nil {
-		// Mock a CSS inline fetch for this milestone
-		cssBody := bytes.NewReader([]byte(`
-			window { background-color: #E5E5E5; width: 800px; height: 600px; }
-			#content { background-color: #FFFFFF; width: 700px; height: 500px; }
-			.highlight { color: #FF0000; }
-		`))
-
 		var err error
 		dom, err = parserAdapter.ParseHTML(htmlBody)
 		if err != nil {
 			log.Fatalf("ParseHTML failed: %v", err)
 		}
 
-		css, err = parserAdapter.ParseCSS(cssBody)
+		// 3.5. Recursive Resource Fetching (Task 7.3)
+		cssCombined := ""
+		for _, res := range dom.Resources {
+			if strings.HasSuffix(res, ".css") {
+				log.Printf("[Orchestrator] Discovered CSS Asset. Fetching %s...", res)
+
+				// Normalize relative URL for mock server
+				resUrl := res
+				if strings.HasPrefix(res, "/") {
+					resUrl = ts.URL + res
+				}
+
+				if netAdapter != nil {
+					resResp, netErr := netAdapter.Fetch(context.Background(), resUrl, gcc.FetchOptions{Method: "GET"})
+					if netErr == nil {
+						resBuf := new(bytes.Buffer)
+						io.Copy(resBuf, resResp.Body)
+						cssCombined += resBuf.String() + "\n"
+					}
+				}
+			} else {
+				log.Printf("[Orchestrator] Skipping non-CSS Asset: %s", res)
+			}
+		}
+
+		if cssCombined == "" {
+			cssCombined = "body { background-color: #E5E5E5; width: 800px; height: 600px; }" // Fallback
+		}
+
+		css, err = parserAdapter.ParseCSS(bytes.NewReader([]byte(cssCombined)))
 		if err != nil {
 			log.Fatalf("ParseCSS failed: %v", err)
 		}
 	} else {
-		dom, css = createMockUI()
+		log.Fatalf("Parser IPC daemon is missing, unable to boot pipeline.")
 	}
 
 	// 4. GUI Rendering Loop (Hardware Accelerated)

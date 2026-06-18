@@ -123,7 +123,10 @@ func (w *ParserServerWrapper) ParseHTML(ctx context.Context, req *api.ParseReque
 	}
 
 	payload, _ := json.Marshal(dom)
-	return &api.ParseHTMLResponse{DomPayload: string(payload)}, nil
+	return &api.ParseHTMLResponse{
+		DomPayload: string(payload),
+		Resources:  dom.Resources,
+	}, nil
 }
 
 func (w *ParserServerWrapper) ParseCSS(ctx context.Context, req *api.ParseRequest) (*api.ParseCSSResponse, error) {

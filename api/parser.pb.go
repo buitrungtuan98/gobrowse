@@ -69,6 +69,7 @@ type ParseHTMLResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	DomPayload    string                 `protobuf:"bytes,1,opt,name=dom_payload,json=domPayload,proto3" json:"dom_payload,omitempty"` // JSON serialized DOMTree
 	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	Resources     []string               `protobuf:"bytes,3,rep,name=resources,proto3" json:"resources,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -117,10 +118,18 @@ func (x *ParseHTMLResponse) GetErrorMessage() string {
 	return ""
 }
 
+func (x *ParseHTMLResponse) GetResources() []string {
+	if x != nil {
+		return x.Resources
+	}
+	return nil
+}
+
 type ParseCSSResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	CssomPayload  string                 `protobuf:"bytes,1,opt,name=cssom_payload,json=cssomPayload,proto3" json:"cssom_payload,omitempty"` // JSON serialized CSSOMTree
 	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	Resources     []string               `protobuf:"bytes,3,rep,name=resources,proto3" json:"resources,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -169,20 +178,29 @@ func (x *ParseCSSResponse) GetErrorMessage() string {
 	return ""
 }
 
+func (x *ParseCSSResponse) GetResources() []string {
+	if x != nil {
+		return x.Resources
+	}
+	return nil
+}
+
 var File_api_parser_proto protoreflect.FileDescriptor
 
 const file_api_parser_proto_rawDesc = "" +
 	"\n" +
 	"\x10api/parser.proto\x12\x03api\"(\n" +
 	"\fParseRequest\x12\x18\n" +
-	"\apayload\x18\x01 \x01(\fR\apayload\"Y\n" +
+	"\apayload\x18\x01 \x01(\fR\apayload\"w\n" +
 	"\x11ParseHTMLResponse\x12\x1f\n" +
 	"\vdom_payload\x18\x01 \x01(\tR\n" +
 	"domPayload\x12#\n" +
-	"\rerror_message\x18\x02 \x01(\tR\ferrorMessage\"\\\n" +
+	"\rerror_message\x18\x02 \x01(\tR\ferrorMessage\x12\x1c\n" +
+	"\tresources\x18\x03 \x03(\tR\tresources\"z\n" +
 	"\x10ParseCSSResponse\x12#\n" +
 	"\rcssom_payload\x18\x01 \x01(\tR\fcssomPayload\x12#\n" +
-	"\rerror_message\x18\x02 \x01(\tR\ferrorMessage2}\n" +
+	"\rerror_message\x18\x02 \x01(\tR\ferrorMessage\x12\x1c\n" +
+	"\tresources\x18\x03 \x03(\tR\tresources2}\n" +
 	"\rParserService\x126\n" +
 	"\tParseHTML\x12\x11.api.ParseRequest\x1a\x16.api.ParseHTMLResponse\x124\n" +
 	"\bParseCSS\x12\x11.api.ParseRequest\x1a\x15.api.ParseCSSResponseB%Z#github.com/go-chromium-core/gcc/apib\x06proto3"

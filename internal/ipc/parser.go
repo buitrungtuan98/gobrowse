@@ -42,6 +42,9 @@ func (a *ParserIPCAdapter) ParseHTML(r io.Reader) (*gcc.DOMTree, error) {
 		return nil, fmt.Errorf("failed to decode daemon dom payload: %w", err)
 	}
 
+	// Map the separately transmitted resources
+	dom.Resources = resp.Resources
+
 	return &dom, nil
 }
 

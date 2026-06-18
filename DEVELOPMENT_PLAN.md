@@ -70,5 +70,5 @@ This document outlines the granular phases, architectural components, and detail
 - [x] **Task 7.2 - W3C Layout Engine Basics (`pkg/render`):**
   * Replace the rudimentary layout algorithm with standard block and inline formatting contexts.
   * Add support for basic Flexbox structures.
-- [ ] **Task 7.3 - Resource Fetching:**
+- [x] **Task 7.3 - Resource Fetching:**
   * Implement recursive asset fetching (images, linked stylesheets) during the HTML parsing phase.

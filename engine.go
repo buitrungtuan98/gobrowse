@@ -40,7 +40,8 @@ type DNSConfig struct {
 
 // DOMTree represents the in-memory document object model.
 type DOMTree struct {
-	Root *DOMNode
+	Root      *DOMNode
+	Resources []string // Discovered asset URLs (e.g. CSS, Images)
 }
 
 type DOMNode struct {

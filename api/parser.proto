@@ -16,9 +16,11 @@ message ParseRequest {
 message ParseHTMLResponse {
   string dom_payload = 1; // JSON serialized DOMTree
   string error_message = 2;
+  repeated string resources = 3;
 }
 
 message ParseCSSResponse {
   string cssom_payload = 1; // JSON serialized CSSOMTree
   string error_message = 2;
+  repeated string resources = 3;
 }
