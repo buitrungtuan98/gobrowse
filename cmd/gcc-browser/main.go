@@ -139,67 +139,12 @@ func startMockServer() *httptest.Server {
 	}))
 }
 
-func main() {
-	log.Println("[GCC Orchestrator] Booting Navigation Pipeline...")
-
-	// 0. Spin up local mock HTTP server
-	ts := startMockServer()
-	defer ts.Close()
-
-	// Orchestrator initialization
-	orchestrator := NewOrchestrator()
-	if _, err := os.Stat(orchestrator.daemonPath); os.IsNotExist(err) {
-		orchestrator.daemonPath = "gcc-daemon"
-	}
-
-	// 1. Spawn Daemons
-	netConn, _ := orchestrator.SpawnProcess("network")
-	parserConn, _ := orchestrator.SpawnProcess("parser")
-	renderConn, _ := orchestrator.SpawnProcess("renderer")
-	jsConn, _ := orchestrator.SpawnProcess("javascript")
-
-	defer func() {
-		if netConn != nil {
-			netConn.Close()
-		}
-		if parserConn != nil {
-			parserConn.Close()
-		}
-		if renderConn != nil {
-			renderConn.Close()
-		}
-		if jsConn != nil {
-			jsConn.Close()
-		}
-	}()
-
-	var netAdapter *ipc.NetworkIPCAdapter
-	if netConn != nil {
-		netAdapter = ipc.NewNetworkIPCAdapter(api.NewNetworkServiceClient(netConn))
-	}
-
-	var parserAdapter *ipc.ParserIPCAdapter
-	if parserConn != nil {
-		parserAdapter = ipc.NewParserIPCAdapter(api.NewParserServiceClient(parserConn))
-	}
-
-	var renderAdapter *ipc.RendererIPCAdapter
-	if renderConn != nil {
-		renderAdapter = ipc.NewRendererIPCAdapter(api.NewRendererServiceClient(renderConn))
-	}
-
-	var jsAdapter *ipc.JavascriptIPCAdapter
-	if jsConn != nil {
-		jsAdapter = ipc.NewJavascriptIPCAdapter(api.NewJavaScriptServiceClient(jsConn))
-	}
-
-	log.Println("[Orchestrator] All IPC Daemons Spawning Completed.")
-
-	// 2. Fetch Document (Network)
-	log.Printf("[Orchestrator] Fetching %s ...", ts.URL)
+// fetchAndParse handles the navigation pipeline for a specific tab
+func fetchAndParse(ctx *BrowserContext, tab *Tab, ts *httptest.Server) {
+	log.Printf("[Orchestrator] Fetching %s ...", tab.URL)
 	var htmlBody io.Reader
-	if netAdapter != nil {
-		resp, err := netAdapter.Fetch(context.Background(), ts.URL, gcc.FetchOptions{Method: "GET"})
+	if ctx.NetworkAdapter != nil {
+		resp, err := ctx.NetworkAdapter.Fetch(context.Background(), tab.URL, gcc.FetchOptions{Method: "GET"})
 		if err != nil {
 			log.Fatalf("Fetch failed: %v", err)
 		}
@@ -208,38 +153,30 @@ func main() {
 		io.Copy(buf, resp.Body)
 		htmlBody = buf
 	} else {
-		// Fallback for tests if daemon missing
-		htmlBody = bytes.NewReader([]byte(`<html><window><viewport id="content"><text>Fallback Pipeline Mode</text></viewport></window></html>`))
+		htmlBody = bytes.NewReader([]byte(fmt.Sprintf(`<html><window><viewport id="content"><text>Fallback Tab: %s</text></viewport></window></html>`, tab.URL)))
 	}
 
-	// 3. Parse Document (Parser)
 	log.Println("[Orchestrator] Parsing HTML structure...")
-	var dom *gcc.DOMTree
-	var css *gcc.CSSOMTree
-	var imageAssets map[string][]byte
-	if parserAdapter != nil {
+	if ctx.ParserAdapter != nil {
 		var err error
-		dom, err = parserAdapter.ParseHTML(htmlBody)
+		tab.DOM, err = ctx.ParserAdapter.ParseHTML(htmlBody)
 		if err != nil {
 			log.Fatalf("ParseHTML failed: %v", err)
 		}
 
-		// 3.5. Recursive Resource Fetching (Task 7.3)
 		cssCombined := ""
-		// Global image asset store mapping URL to downloaded bytes
+		var imageAssets map[string][]byte
 		imageAssets = make(map[string][]byte)
 
-		for _, res := range dom.Resources {
-			// Normalize relative URL for mock server
+		for _, res := range tab.DOM.Resources {
 			resUrl := res
 			if strings.HasPrefix(res, "/") {
 				resUrl = ts.URL + res
 			}
 
 			if strings.HasSuffix(res, ".css") {
-				log.Printf("[Orchestrator] Discovered CSS Asset. Fetching %s...", res)
-				if netAdapter != nil {
-					resResp, netErr := netAdapter.Fetch(context.Background(), resUrl, gcc.FetchOptions{Method: "GET"})
+				if ctx.NetworkAdapter != nil {
+					resResp, netErr := ctx.NetworkAdapter.Fetch(context.Background(), resUrl, gcc.FetchOptions{Method: "GET"})
 					if netErr == nil {
 						resBuf := new(bytes.Buffer)
 						io.Copy(resBuf, resResp.Body)
@@ -247,79 +184,37 @@ func main() {
 					}
 				}
 			} else if strings.HasSuffix(res, ".png") || strings.HasSuffix(res, ".jpg") {
-				log.Printf("[Orchestrator] Discovered Image Asset. Fetching %s...", res)
-				if netAdapter != nil {
-					resResp, netErr := netAdapter.Fetch(context.Background(), resUrl, gcc.FetchOptions{Method: "GET"})
+				if ctx.NetworkAdapter != nil {
+					resResp, netErr := ctx.NetworkAdapter.Fetch(context.Background(), resUrl, gcc.FetchOptions{Method: "GET"})
 					if netErr == nil {
 						resBuf := new(bytes.Buffer)
 						io.Copy(resBuf, resResp.Body)
-						imageAssets[res] = resBuf.Bytes() // Map by original relative path found in DOM
+						imageAssets[res] = resBuf.Bytes()
 					}
 				}
-			} else {
-				log.Printf("[Orchestrator] Skipping Unknown Asset: %s", res)
 			}
 		}
 
 		if cssCombined == "" {
-			cssCombined = "body { background-color: #E5E5E5; width: 800px; height: 600px; }" // Fallback
+			cssCombined = "body { background-color: #E5E5E5; width: 800px; height: 600px; }"
 		}
 
-		css, err = parserAdapter.ParseCSS(bytes.NewReader([]byte(cssCombined)))
+		tab.CSS, err = ctx.ParserAdapter.ParseCSS(bytes.NewReader([]byte(cssCombined)))
 		if err != nil {
 			log.Fatalf("ParseCSS failed: %v", err)
 		}
-	} else {
-		log.Fatalf("Parser IPC daemon is missing, unable to boot pipeline.")
-	}
 
-	// 4. GUI Rendering Loop (Hardware Accelerated)
-	log.Println("[Orchestrator] Initializing Hardware GPU Canvas...")
-	canvas, err := render.NewOpenGLCanvas(800, 600, "Go-Chromium-Core (GCC)")
-	if err != nil {
-		log.Fatalf("Failed to initialize OpenGL canvas: %v", err)
-	}
-	defer canvas.Terminate()
-
-	var currentLayout *gcc.LayoutTree
-	canvas.SetOnMouseClick(func(x, y float64) {
-		if currentLayout != nil {
-			hit := render.HitTest(currentLayout, x, y)
-			if hit != nil && hit.Node != nil {
-				log.Printf("[Orchestrator Event] Clicked Node: %s", hit.Node.Type)
-				if jsAdapter != nil {
-					jsAdapter.DispatchEvent(hit.Node.Type, "click", "{}")
-				}
-			}
-		}
-	})
-
-	// Fallback to local render stack if IPC daemon missing
-	var layoutEngine gcc.RenderEngine = render.NewRenderStack()
-	if renderAdapter != nil {
-		layoutEngine = renderAdapter
-	}
-
-	log.Println("[Orchestrator] Computing static layout geometry...")
-	layoutTree, err := layoutEngine.ComputeLayout(dom, css)
-	if err == nil && layoutTree != nil {
-		currentLayout = layoutTree
-
-		// Inject image byte payloads into the layout tree for the renderer
-		var injectImages func(node *gcc.LayoutTree)
-		injectImages = func(node *gcc.LayoutTree) {
+		// Inject base64 images into DOM manually for this POC
+		var injectImages func(node *gcc.DOMNode)
+		injectImages = func(node *gcc.DOMNode) {
 			if node == nil {
 				return
 			}
-			if node.Node.Type == "img" {
-				for _, attr := range node.Node.Attr {
+			if node.Type == "img" {
+				for i, attr := range node.Attr {
 					if src, ok := attr["src"]; ok {
 						if imgData, exists := imageAssets[src]; exists {
-							// We store the raw bytes inside a temporary attribute for the renderer to read
-							if node.Styles == nil {
-								node.Styles = make(map[string]string)
-							}
-							node.Styles["_img_data"] = base64.StdEncoding.EncodeToString(imgData)
+							node.Attr[i]["_img_data"] = base64.StdEncoding.EncodeToString(imgData)
 						}
 					}
 				}
@@ -328,13 +223,193 @@ func main() {
 				injectImages(child)
 			}
 		}
-		injectImages(layoutTree)
+		injectImages(tab.DOM.Root)
+
+	} else {
+		log.Fatalf("Parser IPC daemon is missing, unable to boot pipeline.")
 	}
+
+	tab.IsDirty = true
+}
+
+func buildBrowserUI(ctx *BrowserContext) (*gcc.DOMTree, *gcc.CSSOMTree) {
+	// Construct the browser Chrome (Tab bar) wrapping the active tab's content
+
+	tabNodes := make([]*gcc.DOMNode, 0)
+	for i, tab := range ctx.Tabs {
+		class := "tab"
+		if i == ctx.ActiveTab {
+			class = "tab active"
+		}
+		tabNodes = append(tabNodes, &gcc.DOMNode{
+			Type: "tab",
+			Attr: []map[string]string{{"class": class}, {"data-id": fmt.Sprintf("%d", i)}},
+			Data: tab.Title,
+		})
+	}
+
+	activeTab := ctx.GetActiveTab()
+	var viewportContent *gcc.DOMNode
+	if activeTab != nil && activeTab.DOM != nil {
+		viewportContent = activeTab.DOM.Root
+	} else {
+		viewportContent = &gcc.DOMNode{Type: "text", Data: "Loading..."}
+	}
+
+	dom := &gcc.DOMTree{
+		Root: &gcc.DOMNode{
+			Type: "window",
+			Children: []*gcc.DOMNode{
+				{
+					Type:     "tab-bar",
+					Attr:     []map[string]string{{"id": "tabs"}},
+					Children: tabNodes,
+				},
+				{
+					Type: "url-bar",
+					Attr: []map[string]string{{"id": "url"}},
+					Children: []*gcc.DOMNode{
+						{Type: "text", Data: activeTab.URL},
+					},
+				},
+				{
+					Type:     "viewport",
+					Attr:     []map[string]string{{"id": "content"}},
+					Children: []*gcc.DOMNode{viewportContent},
+				},
+			},
+		},
+	}
+
+	cssCombined := `
+		window { background-color: #E5E5E5; width: 800px; height: 600px; display: block; }
+		#tabs { background-color: #CCCCCC; width: 800px; height: 40px; display: flex; flex-direction: row; }
+		tab { background-color: #999999; width: 150px; height: 40px; }
+		.active { background-color: #FFFFFF; width: 150px; height: 40px; }
+		#url { background-color: #FFFFFF; width: 800px; height: 30px; display: block; }
+		#content { background-color: #FFFFFF; width: 800px; height: 530px; display: block; }
+	`
+
+	css := &gcc.CSSOMTree{}
+	if ctx.ParserAdapter != nil {
+		var err error
+		css, err = ctx.ParserAdapter.ParseCSS(bytes.NewReader([]byte(cssCombined)))
+		if err != nil {
+			log.Fatalf("ParseCSS failed: %v", err)
+		}
+
+		// Merge Active Tab CSS into Chrome CSS
+		if activeTab != nil && activeTab.CSS != nil {
+			css.Rules = append(css.Rules, activeTab.CSS.Rules...)
+		}
+	}
+
+	return dom, css
+}
+
+func main() {
+	log.Println("[GCC Orchestrator] Booting Multi-Tab Pipeline...")
+
+	ts := startMockServer()
+	defer ts.Close()
+
+	orchestrator := NewOrchestrator()
+	if _, err := os.Stat(orchestrator.daemonPath); os.IsNotExist(err) {
+		orchestrator.daemonPath = "gcc-daemon"
+	}
+
+	// 1. Spawn Shared Daemons (Stateless pool)
+	netConn, _ := orchestrator.SpawnProcess("network")
+	parserConn, _ := orchestrator.SpawnProcess("parser")
+	defer func() {
+		if netConn != nil {
+			netConn.Close()
+		}
+		if parserConn != nil {
+			parserConn.Close()
+		}
+	}()
+
+	var netAdapter *ipc.NetworkIPCAdapter
+	if netConn != nil {
+		netAdapter = ipc.NewNetworkIPCAdapter(api.NewNetworkServiceClient(netConn))
+	}
+	var parserAdapter *ipc.ParserIPCAdapter
+	if parserConn != nil {
+		parserAdapter = ipc.NewParserIPCAdapter(api.NewParserServiceClient(parserConn))
+	}
+
+	// 2. Initialize Browser Context & Tabs
+	browserCtx := NewBrowserContext(orchestrator, netAdapter, parserAdapter)
+
+	tab1 := browserCtx.CreateTab(ts.URL, "Tab 1")
+	tab2 := browserCtx.CreateTab(ts.URL+"/tab2", "Tab 2")
+
+	// Fetch both tabs concurrently (Optimized resource loading)
+	go fetchAndParse(browserCtx, tab1, ts)
+	go fetchAndParse(browserCtx, tab2, ts)
+
+	// 3. GUI Rendering Loop (Hardware Accelerated)
+	log.Println("[Orchestrator] Initializing Hardware GPU Canvas...")
+	canvas, err := render.NewOpenGLCanvas(800, 600, "Go-Chromium-Core (GCC)")
+	if err != nil {
+		log.Fatalf("Failed to initialize OpenGL canvas: %v", err)
+	}
+	defer canvas.Terminate()
+
+	var chromeLayout *gcc.LayoutTree
+	canvas.SetOnMouseClick(func(x, y float64) {
+		if chromeLayout != nil {
+			hit := render.HitTest(chromeLayout, x, y)
+			if hit != nil && hit.Node != nil {
+				log.Printf("[Orchestrator Event] Clicked Node: %s", hit.Node.Type)
+
+				// Handle Tab Switching
+				if hit.Node.Type == "tab" {
+					for _, attr := range hit.Node.Attr {
+						if idStr, ok := attr["data-id"]; ok {
+							var id int
+							fmt.Sscanf(idStr, "%d", &id)
+							if id >= 0 && id < len(browserCtx.Tabs) {
+								browserCtx.ActiveTab = id
+								log.Printf("Switched to Tab %d", id)
+								return // Force re-render
+							}
+						}
+					}
+				}
+
+				// Forward to Active Tab JS Daemon
+				activeTab := browserCtx.GetActiveTab()
+				if activeTab != nil && activeTab.JSAdapter != nil {
+					activeTab.JSAdapter.DispatchEvent(hit.Node.Type, "click", "{}")
+				}
+			}
+		}
+	})
+
+	var localLayoutEngine gcc.RenderEngine = render.NewRenderStack()
 
 	log.Println("[Orchestrator] Entering hardware rendering loop. Close window to exit.")
 	for !canvas.ShouldClose() {
-		if currentLayout != nil {
-			layoutEngine.Paint(currentLayout, canvas)
+		// Zero-Allocation / Dirty checking
+		activeTab := browserCtx.GetActiveTab()
+
+		// If tab layout is dirty or Chrome changed (active tab switched)
+		// We rebuild the Chrome UI tree and re-layout
+		chromeDom, chromeCss := buildBrowserUI(browserCtx)
+
+		// Compute layout for the entire browser window using the local Render Engine
+		// In a full implementation, the inner viewport is computed by the IPC RenderAdapter,
+		// and the Orchestrator composites the frames. For this POC, we compute the Chrome locally.
+		layoutTree, err := localLayoutEngine.ComputeLayout(chromeDom, chromeCss)
+		if err == nil && layoutTree != nil {
+			localLayoutEngine.Paint(layoutTree, canvas)
+			chromeLayout = layoutTree
+
+			if activeTab != nil {
+				activeTab.IsDirty = false
+			}
 		}
 	}
 }

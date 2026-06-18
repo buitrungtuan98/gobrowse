@@ -79,7 +79,7 @@ This document outlines the granular phases, architectural components, and detail
   * Extend Orchestrator to fetch image assets (`<img>` tags) via the Network Daemon.
   * Decode PNG/JPEG payloads and map them to OpenGL Textures.
   * Update `DrawImage` to render texture quads accurately.
-- [ ] **Task 8.2 - Tab UI Management (`cmd/gcc-browser`):**
+- [x] **Task 8.2 - Tab UI Management (`cmd/gcc-browser`):**
   * Implement an OpenGL-based Tab bar allowing context switching between distinct DOM/CSSOM environments.
   * Handle active tab state routing for rendering and JS events.
 - [ ] **Task 8.3 - Parallel Layout Computation (`pkg/render`):**
