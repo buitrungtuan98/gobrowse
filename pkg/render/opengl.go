@@ -6,6 +6,14 @@ import (
 	"strconv"
 	"strings"
 
+	"image"
+	"image/color"
+	"image/draw"
+
+	"golang.org/x/image/font"
+	"golang.org/x/image/font/basicfont"
+	"golang.org/x/image/math/fixed"
+
 	"github.com/go-gl/gl/v3.3-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 )
@@ -26,22 +34,34 @@ type OpenGLCanvas struct {
 
 const vertexShaderSource = `
 #version 330 core
-layout(location = 0) in vec2 position;
+layout(location = 0) in vec4 vertex; // <vec2 pos, vec2 tex>
 uniform mat4 projection;
 uniform vec4 color;
 out vec4 fragColor;
+out vec2 TexCoords;
 void main() {
-    gl_Position = projection * vec4(position, 0.0, 1.0);
+    gl_Position = projection * vec4(vertex.xy, 0.0, 1.0);
     fragColor = color;
+    TexCoords = vertex.zw;
 }
 ` + "\x00"
 
 const fragmentShaderSource = `
 #version 330 core
 in vec4 fragColor;
+in vec2 TexCoords;
 out vec4 outColor;
+
+uniform sampler2D text;
+uniform bool isText;
+
 void main() {
-    outColor = fragColor;
+    if (isText) {
+        vec4 sampled = texture(text, TexCoords);
+        outColor = vec4(fragColor.rgb, sampled.a * fragColor.a);
+    } else {
+        outColor = fragColor;
+    }
 }
 ` + "\x00"
 
@@ -130,14 +150,92 @@ func (c *OpenGLCanvas) DrawRect(x, y, w, h float64, hexColor string) {
 	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
 
 	gl.EnableVertexAttribArray(0)
-	gl.VertexAttribPointerWithOffset(0, 2, gl.FLOAT, false, 2*4, 0)
+	gl.VertexAttribPointerWithOffset(0, 4, gl.FLOAT, false, 4*4, 0)
+
+	// Enable blending for text rendering
+	gl.Enable(gl.BLEND)
+	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
 	gl.DrawArrays(gl.TRIANGLES, 0, 6)
 }
 
-func (c *OpenGLCanvas) DrawText(x, y float64, text string, font string, size float64) {
-	// Text rendering is highly complex natively. For Phase 5 Mock, we represent text as a dark bounding box.
-	c.DrawRect(x, y, float64(len(text))*10, size, "#333333")
+func (c *OpenGLCanvas) DrawText(x, y float64, text string, fontStr string, size float64) {
+	if text == "" {
+		return
+	}
+
+	// Rasterize text to an RGBA image
+	imgWidth := len(text) * 8
+	imgHeight := 16
+	img := image.NewRGBA(image.Rect(0, 0, imgWidth, imgHeight))
+
+	// Fill transparent background
+	draw.Draw(img, img.Bounds(), image.Transparent, image.Point{}, draw.Src)
+
+	d := &font.Drawer{
+		Dst:  img,
+		Src:  image.NewUniform(color.RGBA{0, 0, 0, 255}), // Black text
+		Face: basicfont.Face7x13,
+		Dot:  fixed.Point26_6{X: fixed.I(0), Y: fixed.I(13)}, // Baseline
+	}
+	d.DrawString(text)
+
+	// Create OpenGL Texture
+	var texture uint32
+	gl.GenTextures(1, &texture)
+	gl.BindTexture(gl.TEXTURE_2D, texture)
+
+	// Texture parameters
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+
+	// Upload image data
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(img.Rect.Size().X), int32(img.Rect.Size().Y),
+		0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(img.Pix))
+
+	// Render Texture Quad
+	gl.UseProgram(c.shaderProg)
+
+	isTextLoc := gl.GetUniformLocation(c.shaderProg, gl.Str("isText\x00"))
+	gl.Uniform1i(isTextLoc, 1)
+
+	// We apply text color using fragment shader
+	colorLoc := gl.GetUniformLocation(c.shaderProg, gl.Str("color\x00"))
+	gl.Uniform4f(colorLoc, 0.0, 0.0, 0.0, 1.0) // Black
+
+	w := float64(imgWidth)
+	h := float64(imgHeight)
+
+	// Y offset adjustment for baseline
+	yOffset := y + (size/2) - (float64(imgHeight)/2)
+
+	// Construct vertex payload (X, Y, U, V)
+	vertices := []float32{
+		float32(x), float32(yOffset), 0.0, 0.0,
+		float32(x + w), float32(yOffset), 1.0, 0.0,
+		float32(x + w), float32(yOffset + h), 1.0, 1.0,
+
+		float32(x + w), float32(yOffset + h), 1.0, 1.0,
+		float32(x), float32(yOffset + h), 0.0, 1.0,
+		float32(x), float32(yOffset), 0.0, 0.0,
+	}
+
+	gl.BindVertexArray(c.vao)
+	gl.BindBuffer(gl.ARRAY_BUFFER, c.vbo)
+	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
+
+	gl.EnableVertexAttribArray(0)
+	gl.VertexAttribPointerWithOffset(0, 4, gl.FLOAT, false, 4*4, 0)
+
+	gl.ActiveTexture(gl.TEXTURE0)
+	gl.BindTexture(gl.TEXTURE_2D, texture)
+
+	gl.DrawArrays(gl.TRIANGLES, 0, 6)
+
+	// Clean up texture (in a real engine, we'd cache glyphs in an atlas)
+	gl.DeleteTextures(1, &texture)
 }
 
 func (c *OpenGLCanvas) DrawImage(x, y float64, data []byte) {

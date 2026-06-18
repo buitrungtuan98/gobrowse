@@ -54,7 +54,7 @@ This document outlines the granular phases, architectural components, and detail
 
 ## Phase 6: Interactive UI & Text Rendering (Future)
 **Goal:** Upgrade the mock hardware renderer to handle real text rendering and user input.
-- [ ] **Task 6.1 - Text Rasterization (`pkg/render`):**
+- [x] **Task 6.1 - Text Rasterization (`pkg/render`):**
   * Integrate `freetype` or standard Go font rendering libraries (`golang.org/x/image/font`).
   * Translate text strings into OpenGL texture atlases for hardware acceleration.
 - [ ] **Task 6.2 - Event Handling (`cmd/gcc-browser`):**
