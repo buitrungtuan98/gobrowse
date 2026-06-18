@@ -2,6 +2,7 @@ package render
 
 import (
 	"fmt"
+	"log"
 	"runtime"
 	"strconv"
 	"strings"
@@ -9,7 +10,11 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	_ "image/jpeg"
+	_ "image/png"
 
+	"bytes"
+	"encoding/base64"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/basicfont"
 	"golang.org/x/image/math/fixed"
@@ -256,8 +261,81 @@ func (c *OpenGLCanvas) DrawText(x, y float64, text string, fontStr string, size 
 }
 
 func (c *OpenGLCanvas) DrawImage(x, y float64, data []byte) {
-	// Mock image
-	c.DrawRect(x, y, 50, 50, "#CCCCCC")
+	if len(data) == 0 {
+		return
+	}
+
+	// Try to decode base64 if it's passed as a string representation
+	imgBytes, err := base64.StdEncoding.DecodeString(string(data))
+	if err != nil {
+		imgBytes = data // Assume raw bytes if decoding fails
+	}
+
+	// Decode the image (png/jpeg)
+	img, _, err := image.Decode(bytes.NewReader(imgBytes))
+	if err != nil {
+		log.Printf("Failed to decode image data: %v", err)
+		c.DrawRect(x, y, 50, 50, "#CCCCCC") // Fallback
+		return
+	}
+
+	bounds := img.Bounds()
+	imgWidth := bounds.Dx()
+	imgHeight := bounds.Dy()
+
+	// Convert generic image to RGBA for OpenGL format compatibility
+	rgba := image.NewRGBA(bounds)
+	draw.Draw(rgba, bounds, img, bounds.Min, draw.Src)
+
+	// Create OpenGL Texture
+	var texture uint32
+	gl.GenTextures(1, &texture)
+	gl.BindTexture(gl.TEXTURE_2D, texture)
+
+	// Texture parameters
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+
+	// Upload image data
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(imgWidth), int32(imgHeight),
+		0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(rgba.Pix))
+
+	// Render Texture Quad
+	gl.UseProgram(c.shaderProg)
+
+	isTextLoc := gl.GetUniformLocation(c.shaderProg, gl.Str("isText\x00"))
+	gl.Uniform1i(isTextLoc, 1) // Reuse the text shader logic which just samples the texture
+
+	// Construct vertex payload (X, Y, U, V)
+	w := float64(imgWidth)
+	h := float64(imgHeight)
+
+	vertices := []float32{
+		float32(x), float32(y), 0.0, 0.0,
+		float32(x + w), float32(y), 1.0, 0.0,
+		float32(x + w), float32(y + h), 1.0, 1.0,
+
+		float32(x + w), float32(y + h), 1.0, 1.0,
+		float32(x), float32(y + h), 0.0, 1.0,
+		float32(x), float32(y), 0.0, 0.0,
+	}
+
+	gl.BindVertexArray(c.vao)
+	gl.BindBuffer(gl.ARRAY_BUFFER, c.vbo)
+	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
+
+	gl.EnableVertexAttribArray(0)
+	gl.VertexAttribPointerWithOffset(0, 4, gl.FLOAT, false, 4*4, 0)
+
+	gl.ActiveTexture(gl.TEXTURE0)
+	gl.BindTexture(gl.TEXTURE_2D, texture)
+
+	gl.DrawArrays(gl.TRIANGLES, 0, 6)
+
+	// Clean up texture (in a real engine, we'd cache images in memory)
+	gl.DeleteTextures(1, &texture)
 }
 
 func (c *OpenGLCanvas) Flush() error {

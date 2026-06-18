@@ -39,6 +39,12 @@ func paintNode(layout *gcc.LayoutTree, canvas gcc.TargetCanvas) {
 
 	if layout.Node.Type == "text" {
 		canvas.DrawText(layout.X, layout.Y, layout.Node.Data, "sans-serif", 14)
+	} else if layout.Node.Type == "img" {
+		if imgDataStr, ok := layout.Styles["_img_data"]; ok {
+			canvas.DrawImage(layout.X, layout.Y, []byte(imgDataStr))
+		} else {
+			canvas.DrawRect(layout.X, layout.Y, layout.W, layout.H, bg)
+		}
 	} else {
 		canvas.DrawRect(layout.X, layout.Y, layout.W, layout.H, bg)
 	}

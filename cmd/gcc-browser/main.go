@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"log"
@@ -102,11 +103,19 @@ func (o *Orchestrator) SpawnProcess(role string) (*grpc.ClientConn, error) {
 
 func startMockServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/logo.png" {
+			imgData, _ := base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAABHNCSVQICAgIfAhkiAAAAH9JREFUaIHt0sENgCAQRMFt5wD6b4Y2bIAGMMLs0z0h380551z9L326e+7u/x6yK8jL8fExGvKyw1rXy8vLZL1er9fr9Xq9Xq/X6/V6vV6v1+v1er1er9fr9Xq9Xq/X6/V6vV6v1+v1er1er9fr9Xq9Xq/X6/V6vV6v1+v1er1er9fr9V67t2yq+hNnO3QAAAAASUVORK5CYII=")
+			w.Header().Set("Content-Type", "image/png")
+			w.Write(imgData)
+			return
+		}
+
 		if r.URL.Path == "/styles.css" {
 			css := `
 				body { background-color: #EEEEEE; width: 800px; height: 600px; }
 				#content { background-color: #FFFFFF; width: 600px; height: 400px; }
 				.highlight { color: #FF0000; font-size: 24px; }
+				img { width: 50px; height: 50px; display: block; }
 			`
 			w.Header().Set("Content-Type", "text/css")
 			w.Write([]byte(css))
@@ -121,6 +130,7 @@ func startMockServer() *httptest.Server {
 		  <body>
 			<div id="content">
 			  <p class="highlight">E2E Remote CSS Navigation Pipeline!</p>
+			  <img src="/logo.png">
 			</div>
 		  </body>
 		</html>`
@@ -206,6 +216,7 @@ func main() {
 	log.Println("[Orchestrator] Parsing HTML structure...")
 	var dom *gcc.DOMTree
 	var css *gcc.CSSOMTree
+	var imageAssets map[string][]byte
 	if parserAdapter != nil {
 		var err error
 		dom, err = parserAdapter.ParseHTML(htmlBody)
@@ -215,16 +226,18 @@ func main() {
 
 		// 3.5. Recursive Resource Fetching (Task 7.3)
 		cssCombined := ""
+		// Global image asset store mapping URL to downloaded bytes
+		imageAssets = make(map[string][]byte)
+
 		for _, res := range dom.Resources {
+			// Normalize relative URL for mock server
+			resUrl := res
+			if strings.HasPrefix(res, "/") {
+				resUrl = ts.URL + res
+			}
+
 			if strings.HasSuffix(res, ".css") {
 				log.Printf("[Orchestrator] Discovered CSS Asset. Fetching %s...", res)
-
-				// Normalize relative URL for mock server
-				resUrl := res
-				if strings.HasPrefix(res, "/") {
-					resUrl = ts.URL + res
-				}
-
 				if netAdapter != nil {
 					resResp, netErr := netAdapter.Fetch(context.Background(), resUrl, gcc.FetchOptions{Method: "GET"})
 					if netErr == nil {
@@ -233,8 +246,18 @@ func main() {
 						cssCombined += resBuf.String() + "\n"
 					}
 				}
+			} else if strings.HasSuffix(res, ".png") || strings.HasSuffix(res, ".jpg") {
+				log.Printf("[Orchestrator] Discovered Image Asset. Fetching %s...", res)
+				if netAdapter != nil {
+					resResp, netErr := netAdapter.Fetch(context.Background(), resUrl, gcc.FetchOptions{Method: "GET"})
+					if netErr == nil {
+						resBuf := new(bytes.Buffer)
+						io.Copy(resBuf, resResp.Body)
+						imageAssets[res] = resBuf.Bytes() // Map by original relative path found in DOM
+					}
+				}
 			} else {
-				log.Printf("[Orchestrator] Skipping non-CSS Asset: %s", res)
+				log.Printf("[Orchestrator] Skipping Unknown Asset: %s", res)
 			}
 		}
 
@@ -277,12 +300,41 @@ func main() {
 		layoutEngine = renderAdapter
 	}
 
+	log.Println("[Orchestrator] Computing static layout geometry...")
+	layoutTree, err := layoutEngine.ComputeLayout(dom, css)
+	if err == nil && layoutTree != nil {
+		currentLayout = layoutTree
+
+		// Inject image byte payloads into the layout tree for the renderer
+		var injectImages func(node *gcc.LayoutTree)
+		injectImages = func(node *gcc.LayoutTree) {
+			if node == nil {
+				return
+			}
+			if node.Node.Type == "img" {
+				for _, attr := range node.Node.Attr {
+					if src, ok := attr["src"]; ok {
+						if imgData, exists := imageAssets[src]; exists {
+							// We store the raw bytes inside a temporary attribute for the renderer to read
+							if node.Styles == nil {
+								node.Styles = make(map[string]string)
+							}
+							node.Styles["_img_data"] = base64.StdEncoding.EncodeToString(imgData)
+						}
+					}
+				}
+			}
+			for _, child := range node.Children {
+				injectImages(child)
+			}
+		}
+		injectImages(layoutTree)
+	}
+
 	log.Println("[Orchestrator] Entering hardware rendering loop. Close window to exit.")
 	for !canvas.ShouldClose() {
-		layoutTree, err := layoutEngine.ComputeLayout(dom, css)
-		if err == nil && layoutTree != nil {
-			layoutEngine.Paint(layoutTree, canvas)
-			currentLayout = layoutTree
+		if currentLayout != nil {
+			layoutEngine.Paint(currentLayout, canvas)
 		}
 	}
 }

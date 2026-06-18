@@ -72,3 +72,15 @@ This document outlines the granular phases, architectural components, and detail
   * Add support for basic Flexbox structures.
 - [x] **Task 7.3 - Resource Fetching:**
   * Implement recursive asset fetching (images, linked stylesheets) during the HTML parsing phase.
+
+## Phase 8: Advanced UI & Image Rendering (Future)
+**Goal:** Enhance the browser's graphical capabilities and prepare the architecture for multi-tab environments.
+- [x] **Task 8.1 - Image Rasterization & Rendering (`pkg/render`):**
+  * Extend Orchestrator to fetch image assets (`<img>` tags) via the Network Daemon.
+  * Decode PNG/JPEG payloads and map them to OpenGL Textures.
+  * Update `DrawImage` to render texture quads accurately.
+- [ ] **Task 8.2 - Tab UI Management (`cmd/gcc-browser`):**
+  * Implement an OpenGL-based Tab bar allowing context switching between distinct DOM/CSSOM environments.
+  * Handle active tab state routing for rendering and JS events.
+- [ ] **Task 8.3 - Parallel Layout Computation (`pkg/render`):**
+  * Introduce Goroutines inside the layout tree traversal to calculate dimensions of disjoint DOM branches concurrently.
