@@ -38,10 +38,10 @@ This document outlines the granular phases, architectural components, and detail
 
 ## Phase 4: Sandbox Locking & Security Enforcements
 **Goal:** Ensure untrusted code (Render & JS) executes in highly constrained environments.
-- [ ] **Task 4.1 - Seccomp/Namespaces (`internal/sandbox`):**
+- [x] **Task 4.1 - Seccomp/Namespaces (`internal/sandbox`):**
   * Implement Linux namespace separation (CLONE_NEWNET, CLONE_NEWPID) for render/JS processes.
   * Define strict seccomp-bpf filters to prevent child processes from calling forbidden syscalls (e.g., `socket()`, `open()` outside of whitelisted paths).
-- [ ] **Task 4.2 - Secure Storage Context:**
+- [x] **Task 4.2 - Secure Storage Context:**
   * Implement in-memory ephemeral storage models for the `Tor` context.
 
 ## Phase 5: Hardware Paint Acceleration & GUI

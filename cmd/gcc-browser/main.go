@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-chromium-core/gcc/internal/sandbox"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -41,6 +42,19 @@ func (o *Orchestrator) SpawnProcess(role string) (*grpc.ClientConn, error) {
 	}
 
 	cmd.Stderr = os.Stderr
+
+	// Determine sandbox policy based on the child daemon role
+	policy := sandbox.PolicyStrict
+	if role == "network" {
+		policy = sandbox.PolicyNetwork
+	}
+
+	// Apply OS-level sandbox containerization before starting the process
+	if sandbox.Builder != nil {
+		if err := sandbox.Builder.Configure(cmd, policy); err != nil {
+			return nil, fmt.Errorf("failed to configure sandbox: %w", err)
+		}
+	}
 
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start daemon: %w", err)

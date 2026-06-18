@@ -23,6 +23,7 @@ func NewNetworkStack() *NetworkStack {
 		mode: gcc.ModeRegular,
 		client: &http.Client{
 			Timeout: 30 * time.Second,
+			Jar:     NewEphemeralJar(),
 		},
 	}
 }
