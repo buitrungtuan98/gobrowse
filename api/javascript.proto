@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package api;
+
+option go_package = "github.com/go-chromium-core/gcc/api";
+
+service JavaScriptService {
+  rpc ExecuteScript (ScriptRequest) returns (ScriptResponse);
+  rpc BindGlobalAPI (BindRequest) returns (BindResponse);
+}
+
+message ScriptRequest {
+  string script = 1;
+}
+
+message ScriptResponse {
+  string result_payload = 1; // JSON serialized result
+  string error_message = 2;
+}
+
+message BindRequest {
+  string api_name = 1;
+  string implementation_payload = 2;
+}
+
+message BindResponse {
+  bool success = 1;
+  string error_message = 2;
+}

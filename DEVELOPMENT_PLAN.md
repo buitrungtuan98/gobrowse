@@ -26,7 +26,7 @@ This document outlines the granular phases, architectural components, and detail
 
 ## Phase 3: gRPC Process IPC Isolation
 **Goal:** Separate the monolithic design into isolated, concurrent processes using gRPC and Named Pipes/Unix Sockets.
-- [ ] **Task 3.1 - Protobuf Definitions (`api`):**
+- [x] **Task 3.1 - Protobuf Definitions (`api`):**
   * Define `network.proto` for fetching resources via a secure proxy process.
   * Define `renderer.proto` for IPC layout calculation and paint instructions.
   * Define `javascript.proto` for JS DOM mutation events and execution results.
