@@ -30,7 +30,7 @@ This document outlines the granular phases, architectural components, and detail
   * Define `network.proto` for fetching resources via a secure proxy process.
   * Define `renderer.proto` for IPC layout calculation and paint instructions.
   * Define `javascript.proto` for JS DOM mutation events and execution results.
-- [ ] **Task 3.2 - Main Orchestrator (`cmd/gcc-browser`):**
+- [x] **Task 3.2 - Main Orchestrator (`cmd/gcc-browser`):**
   * Implement process management (spawning child processes).
   * Setup gRPC servers in child processes and clients in the main UI process.
 - [ ] **Task 3.3 - IPC Adapters (`internal/ipc`):**

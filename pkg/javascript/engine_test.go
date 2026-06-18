@@ -23,6 +23,7 @@ func TestExecuteScript(t *testing.T) {
 
 // MockProvider simulates a crypto provider object injected into the DOM
 type MockProvider struct{}
+
 func (m *MockProvider) GetName() string { return "GCC-Crypto" }
 
 func TestBindGlobalAPI(t *testing.T) {
