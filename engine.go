@@ -104,4 +104,5 @@ type RenderEngine interface {
 type JSEngine interface {
 	ExecuteScript(script string) (interface{}, error)
 	BindGlobalAPI(name string, handler interface{}) error
+	DispatchEvent(nodeID string, eventType string, payload string) error
 }

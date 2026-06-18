@@ -221,6 +221,118 @@ func (x *BindResponse) GetErrorMessage() string {
 	return ""
 }
 
+type EventRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	EventType     string                 `protobuf:"bytes,2,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"`
+	Payload       string                 `protobuf:"bytes,3,opt,name=payload,proto3" json:"payload,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EventRequest) Reset() {
+	*x = EventRequest{}
+	mi := &file_api_javascript_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EventRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EventRequest) ProtoMessage() {}
+
+func (x *EventRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_javascript_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EventRequest.ProtoReflect.Descriptor instead.
+func (*EventRequest) Descriptor() ([]byte, []int) {
+	return file_api_javascript_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *EventRequest) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *EventRequest) GetEventType() string {
+	if x != nil {
+		return x.EventType
+	}
+	return ""
+}
+
+func (x *EventRequest) GetPayload() string {
+	if x != nil {
+		return x.Payload
+	}
+	return ""
+}
+
+type EventResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EventResponse) Reset() {
+	*x = EventResponse{}
+	mi := &file_api_javascript_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EventResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EventResponse) ProtoMessage() {}
+
+func (x *EventResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_javascript_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EventResponse.ProtoReflect.Descriptor instead.
+func (*EventResponse) Descriptor() ([]byte, []int) {
+	return file_api_javascript_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *EventResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *EventResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
 var File_api_javascript_proto protoreflect.FileDescriptor
 
 const file_api_javascript_proto_rawDesc = "" +
@@ -236,10 +348,19 @@ const file_api_javascript_proto_rawDesc = "" +
 	"\x16implementation_payload\x18\x02 \x01(\tR\x15implementationPayload\"M\n" +
 	"\fBindResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12#\n" +
-	"\rerror_message\x18\x02 \x01(\tR\ferrorMessage2\x83\x01\n" +
+	"\rerror_message\x18\x02 \x01(\tR\ferrorMessage\"`\n" +
+	"\fEventRequest\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x1d\n" +
+	"\n" +
+	"event_type\x18\x02 \x01(\tR\teventType\x12\x18\n" +
+	"\apayload\x18\x03 \x01(\tR\apayload\"N\n" +
+	"\rEventResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12#\n" +
+	"\rerror_message\x18\x02 \x01(\tR\ferrorMessage2\xbb\x01\n" +
 	"\x11JavaScriptService\x128\n" +
 	"\rExecuteScript\x12\x12.api.ScriptRequest\x1a\x13.api.ScriptResponse\x124\n" +
-	"\rBindGlobalAPI\x12\x10.api.BindRequest\x1a\x11.api.BindResponseB%Z#github.com/go-chromium-core/gcc/apib\x06proto3"
+	"\rBindGlobalAPI\x12\x10.api.BindRequest\x1a\x11.api.BindResponse\x126\n" +
+	"\rDispatchEvent\x12\x11.api.EventRequest\x1a\x12.api.EventResponseB%Z#github.com/go-chromium-core/gcc/apib\x06proto3"
 
 var (
 	file_api_javascript_proto_rawDescOnce sync.Once
@@ -253,20 +374,24 @@ func file_api_javascript_proto_rawDescGZIP() []byte {
 	return file_api_javascript_proto_rawDescData
 }
 
-var file_api_javascript_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_api_javascript_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_api_javascript_proto_goTypes = []any{
 	(*ScriptRequest)(nil),  // 0: api.ScriptRequest
 	(*ScriptResponse)(nil), // 1: api.ScriptResponse
 	(*BindRequest)(nil),    // 2: api.BindRequest
 	(*BindResponse)(nil),   // 3: api.BindResponse
+	(*EventRequest)(nil),   // 4: api.EventRequest
+	(*EventResponse)(nil),  // 5: api.EventResponse
 }
 var file_api_javascript_proto_depIdxs = []int32{
 	0, // 0: api.JavaScriptService.ExecuteScript:input_type -> api.ScriptRequest
 	2, // 1: api.JavaScriptService.BindGlobalAPI:input_type -> api.BindRequest
-	1, // 2: api.JavaScriptService.ExecuteScript:output_type -> api.ScriptResponse
-	3, // 3: api.JavaScriptService.BindGlobalAPI:output_type -> api.BindResponse
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
+	4, // 2: api.JavaScriptService.DispatchEvent:input_type -> api.EventRequest
+	1, // 3: api.JavaScriptService.ExecuteScript:output_type -> api.ScriptResponse
+	3, // 4: api.JavaScriptService.BindGlobalAPI:output_type -> api.BindResponse
+	5, // 5: api.JavaScriptService.DispatchEvent:output_type -> api.EventResponse
+	3, // [3:6] is the sub-list for method output_type
+	0, // [0:3] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -283,7 +408,7 @@ func file_api_javascript_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_javascript_proto_rawDesc), len(file_api_javascript_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

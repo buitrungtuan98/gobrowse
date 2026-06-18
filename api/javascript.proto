@@ -7,6 +7,7 @@ option go_package = "github.com/go-chromium-core/gcc/api";
 service JavaScriptService {
   rpc ExecuteScript (ScriptRequest) returns (ScriptResponse);
   rpc BindGlobalAPI (BindRequest) returns (BindResponse);
+  rpc DispatchEvent (EventRequest) returns (EventResponse);
 }
 
 message ScriptRequest {
@@ -24,6 +25,17 @@ message BindRequest {
 }
 
 message BindResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+message EventRequest {
+  string node_id = 1;
+  string event_type = 2;
+  string payload = 3;
+}
+
+message EventResponse {
   bool success = 1;
   string error_message = 2;
 }

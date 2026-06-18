@@ -100,3 +100,25 @@ func parseDimension(val string) (float64, error) {
 	val = strings.TrimSuffix(val, "px")
 	return strconv.ParseFloat(val, 64)
 }
+
+// HitTest recursively searches the layout tree to find the deepest node intersecting with (x, y).
+func HitTest(layout *gcc.LayoutTree, x, y float64) *gcc.LayoutTree {
+	if layout == nil {
+		return nil
+	}
+
+	// Check if coordinate is within the bounding box of this node
+	if x >= layout.X && x <= (layout.X+layout.W) && y >= layout.Y && y <= (layout.Y+layout.H) {
+		// Node contains point, now check children (last drawn / highest z-index gets priority)
+		for i := len(layout.Children) - 1; i >= 0; i-- {
+			hit := HitTest(layout.Children[i], x, y)
+			if hit != nil {
+				return hit
+			}
+		}
+		// If no child contains the point, return this node
+		return layout
+	}
+
+	return nil
+}

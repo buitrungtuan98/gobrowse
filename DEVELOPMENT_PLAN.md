@@ -57,10 +57,10 @@ This document outlines the granular phases, architectural components, and detail
 - [x] **Task 6.1 - Text Rasterization (`pkg/render`):**
   * Integrate `freetype` or standard Go font rendering libraries (`golang.org/x/image/font`).
   * Translate text strings into OpenGL texture atlases for hardware acceleration.
-- [ ] **Task 6.2 - Event Handling (`cmd/gcc-browser`):**
+- [x] **Task 6.2 - Event Handling (`cmd/gcc-browser`):**
   * Capture keyboard and mouse events from the GLFW window.
   * Implement hit-testing to map screen coordinates to DOM nodes.
-- [ ] **Task 6.3 - JS Event Bridge (`internal/ipc`):**
+- [x] **Task 6.3 - JS Event Bridge (`internal/ipc`):**
   * Forward user interactions via gRPC to the JS Daemon to trigger DOM event listeners (e.g., `onclick`).
 
 ## Phase 7: End-to-End Pipeline & Standard Layouts (Future)

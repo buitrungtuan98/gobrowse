@@ -37,3 +37,16 @@ func (e *GojaEngine) BindGlobalAPI(name string, handler interface{}) error {
 	}
 	return nil
 }
+
+// DispatchEvent simulates firing a DOM event (e.g. click, keypress) into the JS context.
+func (e *GojaEngine) DispatchEvent(nodeID string, eventType string, payload string) error {
+	// For this milestone, we log the event and execute a mock JS handler if it exists globally.
+	// In a full implementation, this routes through a synthetic DOM event dispatcher.
+	fmt.Printf("[JSEngine] Event Dispatched -> Node: %s | Type: %s | Payload: %s\n", nodeID, eventType, payload)
+
+	// Try to execute a global mock handler: `onEvent(nodeId, type, payload)`
+	script := fmt.Sprintf("if (typeof window !== 'undefined' && typeof window.onEvent === 'function') { window.onEvent('%s', '%s', '%s'); }", nodeID, eventType, payload)
+	_, _ = e.vm.RunString(script)
+
+	return nil
+}

@@ -51,3 +51,21 @@ func (a *JavascriptIPCAdapter) BindGlobalAPI(name string, handler interface{}) e
 
 	return nil
 }
+
+func (a *JavascriptIPCAdapter) DispatchEvent(nodeID string, eventType string, payload string) error {
+	req := &api.EventRequest{
+		NodeId:    nodeID,
+		EventType: eventType,
+		Payload:   payload,
+	}
+
+	resp, err := a.client.DispatchEvent(context.Background(), req)
+	if err != nil {
+		return fmt.Errorf("ipc dispatch event failed: %w", err)
+	}
+	if !resp.Success {
+		return fmt.Errorf("daemon js dispatch error: %s", resp.ErrorMessage)
+	}
+
+	return nil
+}

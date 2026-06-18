@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion7
 const (
 	JavaScriptService_ExecuteScript_FullMethodName = "/api.JavaScriptService/ExecuteScript"
 	JavaScriptService_BindGlobalAPI_FullMethodName = "/api.JavaScriptService/BindGlobalAPI"
+	JavaScriptService_DispatchEvent_FullMethodName = "/api.JavaScriptService/DispatchEvent"
 )
 
 // JavaScriptServiceClient is the client API for JavaScriptService service.
@@ -29,6 +30,7 @@ const (
 type JavaScriptServiceClient interface {
 	ExecuteScript(ctx context.Context, in *ScriptRequest, opts ...grpc.CallOption) (*ScriptResponse, error)
 	BindGlobalAPI(ctx context.Context, in *BindRequest, opts ...grpc.CallOption) (*BindResponse, error)
+	DispatchEvent(ctx context.Context, in *EventRequest, opts ...grpc.CallOption) (*EventResponse, error)
 }
 
 type javaScriptServiceClient struct {
@@ -57,12 +59,22 @@ func (c *javaScriptServiceClient) BindGlobalAPI(ctx context.Context, in *BindReq
 	return out, nil
 }
 
+func (c *javaScriptServiceClient) DispatchEvent(ctx context.Context, in *EventRequest, opts ...grpc.CallOption) (*EventResponse, error) {
+	out := new(EventResponse)
+	err := c.cc.Invoke(ctx, JavaScriptService_DispatchEvent_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // JavaScriptServiceServer is the server API for JavaScriptService service.
 // All implementations must embed UnimplementedJavaScriptServiceServer
 // for forward compatibility
 type JavaScriptServiceServer interface {
 	ExecuteScript(context.Context, *ScriptRequest) (*ScriptResponse, error)
 	BindGlobalAPI(context.Context, *BindRequest) (*BindResponse, error)
+	DispatchEvent(context.Context, *EventRequest) (*EventResponse, error)
 	mustEmbedUnimplementedJavaScriptServiceServer()
 }
 
@@ -75,6 +87,9 @@ func (UnimplementedJavaScriptServiceServer) ExecuteScript(context.Context, *Scri
 }
 func (UnimplementedJavaScriptServiceServer) BindGlobalAPI(context.Context, *BindRequest) (*BindResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BindGlobalAPI not implemented")
+}
+func (UnimplementedJavaScriptServiceServer) DispatchEvent(context.Context, *EventRequest) (*EventResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DispatchEvent not implemented")
 }
 func (UnimplementedJavaScriptServiceServer) mustEmbedUnimplementedJavaScriptServiceServer() {}
 
@@ -125,6 +140,24 @@ func _JavaScriptService_BindGlobalAPI_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _JavaScriptService_DispatchEvent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EventRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(JavaScriptServiceServer).DispatchEvent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: JavaScriptService_DispatchEvent_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(JavaScriptServiceServer).DispatchEvent(ctx, req.(*EventRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // JavaScriptService_ServiceDesc is the grpc.ServiceDesc for JavaScriptService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -139,6 +172,10 @@ var JavaScriptService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "BindGlobalAPI",
 			Handler:    _JavaScriptService_BindGlobalAPI_Handler,
+		},
+		{
+			MethodName: "DispatchEvent",
+			Handler:    _JavaScriptService_DispatchEvent_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

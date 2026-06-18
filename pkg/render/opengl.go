@@ -30,6 +30,7 @@ type OpenGLCanvas struct {
 	shaderProg    uint32
 	vao           uint32
 	vbo           uint32
+	onClick       func(x, y float64)
 }
 
 const vertexShaderSource = `
@@ -95,14 +96,30 @@ func NewOpenGLCanvas(width, height int, title string) (*OpenGLCanvas, error) {
 	gl.GenVertexArrays(1, &vao)
 	gl.GenBuffers(1, &vbo)
 
-	return &OpenGLCanvas{
+	canvas := &OpenGLCanvas{
 		window:     window,
 		width:      width,
 		height:     height,
 		shaderProg: prog,
 		vao:        vao,
 		vbo:        vbo,
-	}, nil
+	}
+
+	window.SetMouseButtonCallback(func(w *glfw.Window, button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey) {
+		if button == glfw.MouseButtonLeft && action == glfw.Press {
+			x, y := w.GetCursorPos()
+			if canvas.onClick != nil {
+				canvas.onClick(x, y)
+			}
+		}
+	})
+
+	return canvas, nil
+}
+
+// SetOnMouseClick registers a callback for mouse down events.
+func (c *OpenGLCanvas) SetOnMouseClick(cb func(x, y float64)) {
+	c.onClick = cb
 }
 
 // DrawRect compiles a geometry quad and sends it to the GPU
@@ -209,7 +226,7 @@ func (c *OpenGLCanvas) DrawText(x, y float64, text string, fontStr string, size 
 	h := float64(imgHeight)
 
 	// Y offset adjustment for baseline
-	yOffset := y + (size/2) - (float64(imgHeight)/2)
+	yOffset := y + (size / 2) - (float64(imgHeight) / 2)
 
 	// Construct vertex payload (X, Y, U, V)
 	vertices := []float32{

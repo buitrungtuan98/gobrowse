@@ -84,6 +84,14 @@ func (w *JSServerWrapper) BindGlobalAPI(ctx context.Context, req *api.BindReques
 	return &api.BindResponse{Success: true}, nil
 }
 
+func (w *JSServerWrapper) DispatchEvent(ctx context.Context, req *api.EventRequest) (*api.EventResponse, error) {
+	err := w.engine.DispatchEvent(req.NodeId, req.EventType, req.Payload)
+	if err != nil {
+		return &api.EventResponse{Success: false, ErrorMessage: err.Error()}, nil
+	}
+	return &api.EventResponse{Success: true}, nil
+}
+
 func main() {
 	flag.Parse()
 

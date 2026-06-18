@@ -10,6 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-chromium-core/gcc"
+	"github.com/go-chromium-core/gcc/api"
+	"github.com/go-chromium-core/gcc/internal/ipc"
 	"github.com/go-chromium-core/gcc/internal/sandbox"
 	"github.com/go-chromium-core/gcc/pkg/render"
 	"google.golang.org/grpc"
@@ -132,12 +135,40 @@ func main() {
 	layoutEngine := render.NewRenderStack()
 
 	log.Println("[Orchestrator] Entering hardware rendering loop. Close window to exit.")
+
+	// Phase 6.2/6.3: JS Event Bridge
+	var jsAdapter *ipc.JavascriptIPCAdapter
+	if jsConn != nil {
+		jsAdapter = ipc.NewJavascriptIPCAdapter(api.NewJavaScriptServiceClient(jsConn))
+	}
+
+	// Register hit-testing event listener
+	var currentLayout *gcc.LayoutTree
+	canvas.SetOnMouseClick(func(x, y float64) {
+		if currentLayout != nil {
+			hit := render.HitTest(currentLayout, x, y)
+			if hit != nil && hit.Node != nil {
+				log.Printf("[Orchestrator Event] Clicked Node: %s", hit.Node.Type)
+
+				// Dispatch event over gRPC to Javascript VM
+				if jsAdapter != nil {
+					nodeID := hit.Node.Type // Simplified for mock
+					err := jsAdapter.DispatchEvent(nodeID, "click", "{}")
+					if err != nil {
+						log.Printf("[Orchestrator Event] Failed to dispatch to JS: %v", err)
+					}
+				}
+			}
+		}
+	})
+
 	for !canvas.ShouldClose() {
 		// Calculate UI dimensions
 		layoutTree, err := layoutEngine.ComputeLayout(uiDom, uiCss)
 		if err == nil && layoutTree != nil {
 			// Paint the layout onto the hardware canvas
 			layoutEngine.Paint(layoutTree, canvas)
+			currentLayout = layoutTree
 		}
 	}
 
