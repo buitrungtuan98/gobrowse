@@ -17,7 +17,7 @@ This document outlines the granular phases, architectural components, and detail
 - [x] **Task 2.2 - Parser (`pkg/parser`):**
   * Build an HTML lexer and parser that generates a `DOMTree`.
   * Build a basic CSS parser to generate `CSSOMTree`.
-- [ ] **Task 2.3 - Layout & Render (`pkg/render`):**
+- [x] **Task 2.3 - Layout & Render (`pkg/render`):**
   * Implement a simple layout algorithm to combine `DOMTree` and `CSSOMTree` into a `LayoutTree`.
   * Create a mock text-based or terminal renderer (`TargetCanvas`).
 - [ ] **Task 2.4 - JavaScript (`pkg/javascript`):**
