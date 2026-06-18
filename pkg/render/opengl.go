@@ -36,6 +36,8 @@ type OpenGLCanvas struct {
 	vao           uint32
 	vbo           uint32
 	onClick       func(x, y float64)
+	onChar        func(char rune)
+	onKey         func(key int, action int)
 }
 
 const vertexShaderSource = `
@@ -116,6 +118,18 @@ func NewOpenGLCanvas(width, height int, title string) (*OpenGLCanvas, error) {
 			if canvas.onClick != nil {
 				canvas.onClick(x, y)
 			}
+		}
+	})
+
+	window.SetCharCallback(func(w *glfw.Window, char rune) {
+		if canvas.onChar != nil {
+			canvas.onChar(char)
+		}
+	})
+
+	window.SetKeyCallback(func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
+		if canvas.onKey != nil {
+			canvas.onKey(int(key), int(action))
 		}
 	})
 
@@ -414,4 +428,14 @@ func parseHexColor(hex string) (float32, float32, float32) {
 	b, _ := strconv.ParseInt(hex[4:6], 16, 64)
 
 	return float32(r) / 255.0, float32(g) / 255.0, float32(b) / 255.0
+}
+
+// SetOnChar registers a callback for character input (typing).
+func (c *OpenGLCanvas) SetOnChar(cb func(char rune)) {
+	c.onChar = cb
+}
+
+// SetOnKey registers a callback for raw key presses (e.g. Backspace, Enter).
+func (c *OpenGLCanvas) SetOnKey(cb func(key int, action int)) {
+	c.onKey = cb
 }

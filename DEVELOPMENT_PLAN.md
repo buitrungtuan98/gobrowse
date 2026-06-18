@@ -84,3 +84,12 @@ This document outlines the granular phases, architectural components, and detail
   * Handle active tab state routing for rendering and JS events.
 - [x] **Task 8.3 - Parallel Layout Computation (`pkg/render`):**
   * Introduce Goroutines inside the layout tree traversal to calculate dimensions of disjoint DOM branches concurrently.
+
+## Phase 9: Keyboard Input & Real URL Navigation (Future)
+**Goal:** Transition the browser from a static mock pipeline to a dynamic, interactive web client capable of free-form navigation.
+- [x] **Task 9.1 - Keyboard Event Handling (`pkg/render`):**
+  * Hook into GLFW character and key callbacks to capture text input.
+  * Map input events to the Orchestrator's active context.
+- [x] **Task 9.2 - Omnibox (URL Bar) Navigation (`cmd/gcc-browser`):**
+  * Manage URL input state and caret behavior.
+  * Trigger real-world end-to-end `Fetch -> Parse -> Render` pipelines via the IPC daemons when the user presses Enter.

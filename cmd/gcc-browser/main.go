@@ -143,8 +143,13 @@ func startMockServer() *httptest.Server {
 func fetchAndParse(ctx *BrowserContext, tab *Tab, ts *httptest.Server) {
 	log.Printf("[Orchestrator] Fetching %s ...", tab.URL)
 	var htmlBody io.Reader
+	fetchUrl := tab.URL
+	if !strings.HasPrefix(fetchUrl, "http://") && !strings.HasPrefix(fetchUrl, "https://") {
+		fetchUrl = "http://" + fetchUrl
+	}
+
 	if ctx.NetworkAdapter != nil {
-		resp, err := ctx.NetworkAdapter.Fetch(context.Background(), tab.URL, gcc.FetchOptions{Method: "GET"})
+		resp, err := ctx.NetworkAdapter.Fetch(context.Background(), fetchUrl, gcc.FetchOptions{Method: "GET"})
 		if err != nil {
 			log.Fatalf("Fetch failed: %v", err)
 		}
@@ -232,7 +237,7 @@ func fetchAndParse(ctx *BrowserContext, tab *Tab, ts *httptest.Server) {
 	tab.IsDirty = true
 }
 
-func buildBrowserUI(ctx *BrowserContext) (*gcc.DOMTree, *gcc.CSSOMTree) {
+func buildBrowserUI(ctx *BrowserContext, urlBuffer string, urlFocused bool) (*gcc.DOMTree, *gcc.CSSOMTree) {
 	// Construct the browser Chrome (Tab bar) wrapping the active tab's content
 
 	tabNodes := make([]*gcc.DOMNode, 0)
@@ -269,7 +274,7 @@ func buildBrowserUI(ctx *BrowserContext) (*gcc.DOMTree, *gcc.CSSOMTree) {
 					Type: "url-bar",
 					Attr: []map[string]string{{"id": "url"}},
 					Children: []*gcc.DOMNode{
-						{Type: "text", Data: activeTab.URL},
+						{Type: "text", Data: urlBuffer},
 					},
 				},
 				{
@@ -286,7 +291,7 @@ func buildBrowserUI(ctx *BrowserContext) (*gcc.DOMTree, *gcc.CSSOMTree) {
 		#tabs { background-color: #CCCCCC; width: 800px; height: 40px; display: flex; flex-direction: row; }
 		tab { background-color: #999999; width: 150px; height: 40px; }
 		.active { background-color: #FFFFFF; width: 150px; height: 40px; }
-		#url { background-color: #FFFFFF; width: 800px; height: 30px; display: block; }
+		#url { background-color: #FFFFFF; width: 800px; height: 30px; display: block; border-bottom: 2px solid #333; }
 		#content { background-color: #FFFFFF; width: 800px; height: 530px; display: block; }
 	`
 
@@ -358,11 +363,31 @@ func main() {
 	defer canvas.Terminate()
 
 	var chromeLayout *gcc.LayoutTree
+	urlFocused := false
+	urlBuffer := ""
+	if activeTab := browserCtx.GetActiveTab(); activeTab != nil {
+		urlBuffer = activeTab.URL
+	}
+
+	// Track Chrome UI updates
+	needsChromeUpdate := true
+	_ = needsChromeUpdate
+
 	canvas.SetOnMouseClick(func(x, y float64) {
 		if chromeLayout != nil {
 			hit := render.HitTest(chromeLayout, x, y)
 			if hit != nil && hit.Node != nil {
 				log.Printf("[Orchestrator Event] Clicked Node: %s", hit.Node.Type)
+
+				// Handle URL Bar Focus
+				if hit.Node.Type == "url-bar" || hit.Node.Type == "text" && hit.Node.Data == urlBuffer {
+					urlFocused = true
+					needsChromeUpdate = true
+					return
+				} else {
+					urlFocused = false
+					needsChromeUpdate = true
+				}
 
 				// Handle Tab Switching
 				if hit.Node.Type == "tab" {
@@ -372,18 +397,37 @@ func main() {
 							fmt.Sscanf(idStr, "%d", &id)
 							if id >= 0 && id < len(browserCtx.Tabs) {
 								browserCtx.ActiveTab = id
-								log.Printf("Switched to Tab %d", id)
-								return // Force re-render
+								urlBuffer = browserCtx.Tabs[id].URL // Reset URL buffer to new active tab
+								needsChromeUpdate = true
+								return
 							}
 						}
 					}
 				}
+			}
+		}
+	})
 
-				// Forward to Active Tab JS Daemon
+	canvas.SetOnChar(func(char rune) {
+		if urlFocused {
+			urlBuffer += string(char)
+			needsChromeUpdate = true
+		}
+	})
+
+	canvas.SetOnKey(func(key int, action int) {
+		if urlFocused && action == 1 { // 1 == Press (glfw.Press)
+			if key == 259 && len(urlBuffer) > 0 { // 259 == Backspace (glfw.KeyBackspace)
+				urlBuffer = urlBuffer[:len(urlBuffer)-1]
+				needsChromeUpdate = true
+			} else if key == 257 { // 257 == Enter (glfw.KeyEnter)
+				urlFocused = false
 				activeTab := browserCtx.GetActiveTab()
-				if activeTab != nil && activeTab.JSAdapter != nil {
-					activeTab.JSAdapter.DispatchEvent(hit.Node.Type, "click", "{}")
+				if activeTab != nil {
+					activeTab.URL = urlBuffer
+					go fetchAndParse(browserCtx, activeTab, ts)
 				}
+				needsChromeUpdate = true
 			}
 		}
 	})
@@ -397,7 +441,7 @@ func main() {
 
 		// If tab layout is dirty or Chrome changed (active tab switched)
 		// We rebuild the Chrome UI tree and re-layout
-		chromeDom, chromeCss := buildBrowserUI(browserCtx)
+		chromeDom, chromeCss := buildBrowserUI(browserCtx, urlBuffer, urlFocused)
 
 		// Compute layout for the entire browser window using the local Render Engine
 		// In a full implementation, the inner viewport is computed by the IPC RenderAdapter,
