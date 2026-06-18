@@ -46,8 +46,8 @@ This document outlines the granular phases, architectural components, and detail
 
 ## Phase 5: Hardware Paint Acceleration & GUI
 **Goal:** Replace the terminal/mock renderer with a high-performance cross-platform GUI.
-- [ ] **Task 5.1 - GPU Backend (`pkg/render`):**
-  * Integrate `gioui.org` (Gio) or `fyne` for cross-platform desktop windows.
+- [x] **Task 5.1 - GPU Backend (`pkg/render`):**
+  * Integrate raw OpenGL and GLFW bindings to implement a hardware-accelerated immediate mode GUI.
   * Implement hardware-accelerated draw calls for the `TargetCanvas` interface.
-- [ ] **Task 5.2 - Tab Management:**
+- [x] **Task 5.2 - Tab Management:**
   * Build multi-tab UI handling, mapping each tab to its dedicated render/JS processes.

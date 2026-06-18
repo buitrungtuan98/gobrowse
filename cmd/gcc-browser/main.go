@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-chromium-core/gcc/internal/sandbox"
+	"github.com/go-chromium-core/gcc/pkg/render"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -114,5 +115,30 @@ func main() {
 	}
 
 	time.Sleep(1 * time.Second)
-	fmt.Println("[GCC Orchestrator] Orchestration mock ready. Ensure `gcc-daemon` is available in PATH.")
+
+	// Phase 5: Hardware Paint GUI Initialization
+	log.Println("[Orchestrator] Initializing Hardware GPU Canvas...")
+
+	canvas, err := render.NewOpenGLCanvas(800, 600, "Go-Chromium-Core (GCC)")
+	if err != nil {
+		log.Fatalf("Failed to initialize OpenGL canvas: %v", err)
+	}
+	defer canvas.Terminate()
+
+	// Build the mock UI tree
+	uiDom, uiCss := createMockUI()
+
+	// Create a local Layout Engine to compute the UI Geometry
+	layoutEngine := render.NewRenderStack()
+
+	log.Println("[Orchestrator] Entering hardware rendering loop. Close window to exit.")
+	for !canvas.ShouldClose() {
+		// Calculate UI dimensions
+		layoutTree, err := layoutEngine.ComputeLayout(uiDom, uiCss)
+		if err == nil && layoutTree != nil {
+			// Paint the layout onto the hardware canvas
+			layoutEngine.Paint(layoutTree, canvas)
+		}
+	}
+
 }
