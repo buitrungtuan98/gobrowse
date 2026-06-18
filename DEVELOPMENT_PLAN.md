@@ -33,7 +33,7 @@ This document outlines the granular phases, architectural components, and detail
 - [x] **Task 3.2 - Main Orchestrator (`cmd/gcc-browser`):**
   * Implement process management (spawning child processes).
   * Setup gRPC servers in child processes and clients in the main UI process.
-- [ ] **Task 3.3 - IPC Adapters (`internal/ipc`):**
+- [x] **Task 3.3 - IPC Adapters (`internal/ipc`):**
   * Implement wrappers that satisfy the `engine.go` interfaces but internally translate calls to gRPC over Named Pipes/Sockets.
 
 ## Phase 4: Sandbox Locking & Security Enforcements
