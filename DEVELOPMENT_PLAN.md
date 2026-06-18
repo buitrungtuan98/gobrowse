@@ -51,3 +51,24 @@ This document outlines the granular phases, architectural components, and detail
   * Implement hardware-accelerated draw calls for the `TargetCanvas` interface.
 - [x] **Task 5.2 - Tab Management:**
   * Build multi-tab UI handling, mapping each tab to its dedicated render/JS processes.
+
+## Phase 6: Interactive UI & Text Rendering (Future)
+**Goal:** Upgrade the mock hardware renderer to handle real text rendering and user input.
+- [ ] **Task 6.1 - Text Rasterization (`pkg/render`):**
+  * Integrate `freetype` or standard Go font rendering libraries (`golang.org/x/image/font`).
+  * Translate text strings into OpenGL texture atlases for hardware acceleration.
+- [ ] **Task 6.2 - Event Handling (`cmd/gcc-browser`):**
+  * Capture keyboard and mouse events from the GLFW window.
+  * Implement hit-testing to map screen coordinates to DOM nodes.
+- [ ] **Task 6.3 - JS Event Bridge (`internal/ipc`):**
+  * Forward user interactions via gRPC to the JS Daemon to trigger DOM event listeners (e.g., `onclick`).
+
+## Phase 7: End-to-End Pipeline & Standard Layouts (Future)
+**Goal:** Connect the isolated daemons into a unified web browsing flow and support standard W3C layouts.
+- [ ] **Task 7.1 - The Navigation Pipeline:**
+  * Implement the core flow: User types URL -> Orchestrator commands Network Daemon -> Network returns HTML -> Orchestrator sends HTML to Parser Daemon -> Parser returns DOM/CSSOM -> Orchestrator sends to Render Daemon -> Render paints to OpenGL.
+- [ ] **Task 7.2 - W3C Layout Engine Basics (`pkg/render`):**
+  * Replace the rudimentary layout algorithm with standard block and inline formatting contexts.
+  * Add support for basic Flexbox structures.
+- [ ] **Task 7.3 - Resource Fetching:**
+  * Implement recursive asset fetching (images, linked stylesheets) during the HTML parsing phase.
