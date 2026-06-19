@@ -89,9 +89,32 @@ func computeNode(domNode *gcc.DOMNode, css *gcc.CSSOMTree, currentX, currentY fl
 			}
 		}
 
+		// Helper to check pseudo-classes
+		hasPseudoState := func(pseudo string) bool {
+			stateAttr := "_" + strings.TrimPrefix(pseudo, ":")
+			for _, attrMap := range domNode.Attr {
+				if val, exists := attrMap[stateAttr]; exists && val == "true" {
+					return true
+				}
+			}
+			return false
+		}
+
+		// Helper to match selectors including pseudo-classes
+		matchSelector := func(baseSelector, ruleSelector string) bool {
+			if ruleSelector == baseSelector {
+				return true
+			}
+			if strings.HasPrefix(ruleSelector, baseSelector+":") {
+				pseudo := strings.TrimPrefix(ruleSelector, baseSelector)
+				return hasPseudoState(pseudo)
+			}
+			return false
+		}
+
 		// 1. Tag matching
 		for _, rule := range css.Rules {
-			if rule.Selector == domNode.Type {
+			if matchSelector(domNode.Type, rule.Selector) {
 				applyRule(rule)
 			}
 		}
@@ -102,7 +125,7 @@ func computeNode(domNode *gcc.DOMNode, css *gcc.CSSOMTree, currentX, currentY fl
 				classArray := strings.Split(classes, " ")
 				for _, class := range classArray {
 					for _, rule := range css.Rules {
-						if rule.Selector == "."+class {
+						if matchSelector("."+class, rule.Selector) {
 							applyRule(rule)
 						}
 					}
@@ -114,7 +137,7 @@ func computeNode(domNode *gcc.DOMNode, css *gcc.CSSOMTree, currentX, currentY fl
 		for _, attrMap := range domNode.Attr {
 			if id, exists := attrMap["id"]; exists {
 				for _, rule := range css.Rules {
-					if rule.Selector == "#"+id {
+					if matchSelector("#"+id, rule.Selector) {
 						applyRule(rule)
 					}
 				}

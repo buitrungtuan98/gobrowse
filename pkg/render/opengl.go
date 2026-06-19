@@ -36,6 +36,8 @@ type OpenGLCanvas struct {
 	vao           uint32
 	vbo           uint32
 	onClick       func(x, y float64)
+	onMouseUp     func(x, y float64)
+	onMouseMove   func(x, y float64)
 	onChar        func(char rune)
 	onKey         func(key int, action int)
 }
@@ -113,11 +115,19 @@ func NewOpenGLCanvas(width, height int, title string) (*OpenGLCanvas, error) {
 	}
 
 	window.SetMouseButtonCallback(func(w *glfw.Window, button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey) {
-		if button == glfw.MouseButtonLeft && action == glfw.Press {
+		if button == glfw.MouseButtonLeft {
 			x, y := w.GetCursorPos()
-			if canvas.onClick != nil {
+			if action == glfw.Press && canvas.onClick != nil {
 				canvas.onClick(x, y)
+			} else if action == glfw.Release && canvas.onMouseUp != nil {
+				canvas.onMouseUp(x, y)
 			}
+		}
+	})
+
+	window.SetCursorPosCallback(func(w *glfw.Window, xpos float64, ypos float64) {
+		if canvas.onMouseMove != nil {
+			canvas.onMouseMove(xpos, ypos)
 		}
 	})
 
@@ -139,6 +149,16 @@ func NewOpenGLCanvas(width, height int, title string) (*OpenGLCanvas, error) {
 // SetOnMouseClick registers a callback for mouse down events.
 func (c *OpenGLCanvas) SetOnMouseClick(cb func(x, y float64)) {
 	c.onClick = cb
+}
+
+// SetOnMouseUp registers a callback for mouse up events.
+func (c *OpenGLCanvas) SetOnMouseUp(cb func(x, y float64)) {
+	c.onMouseUp = cb
+}
+
+// SetOnMouseMove registers a callback for mouse movement events.
+func (c *OpenGLCanvas) SetOnMouseMove(cb func(x, y float64)) {
+	c.onMouseMove = cb
 }
 
 // DrawRect compiles a geometry quad and sends it to the GPU

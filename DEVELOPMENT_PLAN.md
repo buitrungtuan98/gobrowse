@@ -124,7 +124,7 @@ This document outlines the granular phases, architectural components, and detail
 **Goal:** Expand CSS support to handle modern web layouts and interactive states.
 - [ ] **Task 13.1 - CSS Grid Basics (`pkg/render`):**
   * Implement standard grid formatting contexts alongside existing flexbox/block layouts.
-- [ ] **Task 13.2 - Pseudo-classes Support (`pkg/render` & `cmd/gcc-browser`):**
+- [x] **Task 13.2 - Pseudo-classes Support (`pkg/render` & `cmd/gcc-browser`):**
   * Add support for interactive pseudo-classes like `:hover`, `:active`, and `:focus`.
   * Trigger style recalculation on mouse/keyboard events.
 - [ ] **Task 13.3 - Media Queries (`pkg/parser` & `pkg/render`):**
