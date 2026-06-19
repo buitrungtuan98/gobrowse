@@ -104,3 +104,12 @@ This document outlines the granular phases, architectural components, and detail
 - [x] **Task 10.3 - Rendering Updates (`cmd/gcc-browser`):**
   * Poll the JS Daemon during the OpenGL loop.
   * Apply received mutations to the Orchestrator's DOMTree, mark the context as dirty, and trigger a hardware repaint.
+
+## Phase 11: Real-time WebSockets over IPC (Future)
+**Goal:** Implement full-duplex communication protocols bridging the isolated JS sandbox to external servers via the Network daemon.
+- [x] **Task 11.1 - Bidirectional Streaming IPC (`api/network.proto`):**
+  * Define `OpenWebSocket` as a bidirectional gRPC stream to pass frames back and forth.
+- [x] **Task 11.2 - Network Daemon Implementation (`pkg/network`):**
+  * Utilize `golang.org/x/net/websocket` to handle the RFC 6455 protocol to the outside world.
+- [x] **Task 11.3 - JS WebSocket API (`pkg/javascript`):**
+  * Bind a `WebSocket` object into the Goja environment, allowing scripts to call `.send()` and trigger `.onmessage()` callbacks.

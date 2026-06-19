@@ -157,6 +157,66 @@ func (x *FetchResponse) GetErrorMessage() string {
 	return ""
 }
 
+type WSMessage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"` // Only used in the first handshake request
+	Payload       []byte                 `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
+	IsClose       bool                   `protobuf:"varint,3,opt,name=is_close,json=isClose,proto3" json:"is_close,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WSMessage) Reset() {
+	*x = WSMessage{}
+	mi := &file_api_network_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WSMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WSMessage) ProtoMessage() {}
+
+func (x *WSMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_api_network_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WSMessage.ProtoReflect.Descriptor instead.
+func (*WSMessage) Descriptor() ([]byte, []int) {
+	return file_api_network_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *WSMessage) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *WSMessage) GetPayload() []byte {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+func (x *WSMessage) GetIsClose() bool {
+	if x != nil {
+		return x.IsClose
+	}
+	return false
+}
+
 var File_api_network_proto protoreflect.FileDescriptor
 
 const file_api_network_proto_rawDesc = "" +
@@ -178,9 +238,14 @@ const file_api_network_proto_rawDesc = "" +
 	"\rerror_message\x18\x04 \x01(\tR\ferrorMessage\x1a:\n" +
 	"\fHeadersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x012H\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"R\n" +
+	"\tWSMessage\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12\x18\n" +
+	"\apayload\x18\x02 \x01(\fR\apayload\x12\x19\n" +
+	"\bis_close\x18\x03 \x01(\bR\aisClose2}\n" +
 	"\x0eNetworkService\x126\n" +
-	"\rFetchResource\x12\x11.api.FetchRequest\x1a\x12.api.FetchResponseB%Z#github.com/go-chromium-core/gcc/apib\x06proto3"
+	"\rFetchResource\x12\x11.api.FetchRequest\x1a\x12.api.FetchResponse\x123\n" +
+	"\rOpenWebSocket\x12\x0e.api.WSMessage\x1a\x0e.api.WSMessage(\x010\x01B%Z#github.com/go-chromium-core/gcc/apib\x06proto3"
 
 var (
 	file_api_network_proto_rawDescOnce sync.Once
@@ -194,20 +259,23 @@ func file_api_network_proto_rawDescGZIP() []byte {
 	return file_api_network_proto_rawDescData
 }
 
-var file_api_network_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_api_network_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_api_network_proto_goTypes = []any{
 	(*FetchRequest)(nil),  // 0: api.FetchRequest
 	(*FetchResponse)(nil), // 1: api.FetchResponse
-	nil,                   // 2: api.FetchRequest.HeadersEntry
-	nil,                   // 3: api.FetchResponse.HeadersEntry
+	(*WSMessage)(nil),     // 2: api.WSMessage
+	nil,                   // 3: api.FetchRequest.HeadersEntry
+	nil,                   // 4: api.FetchResponse.HeadersEntry
 }
 var file_api_network_proto_depIdxs = []int32{
-	2, // 0: api.FetchRequest.headers:type_name -> api.FetchRequest.HeadersEntry
-	3, // 1: api.FetchResponse.headers:type_name -> api.FetchResponse.HeadersEntry
+	3, // 0: api.FetchRequest.headers:type_name -> api.FetchRequest.HeadersEntry
+	4, // 1: api.FetchResponse.headers:type_name -> api.FetchResponse.HeadersEntry
 	0, // 2: api.NetworkService.FetchResource:input_type -> api.FetchRequest
-	1, // 3: api.NetworkService.FetchResource:output_type -> api.FetchResponse
-	3, // [3:4] is the sub-list for method output_type
-	2, // [2:3] is the sub-list for method input_type
+	2, // 3: api.NetworkService.OpenWebSocket:input_type -> api.WSMessage
+	1, // 4: api.NetworkService.FetchResource:output_type -> api.FetchResponse
+	2, // 5: api.NetworkService.OpenWebSocket:output_type -> api.WSMessage
+	4, // [4:6] is the sub-list for method output_type
+	2, // [2:4] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
 	2, // [2:2] is the sub-list for extension extendee
 	0, // [0:2] is the sub-list for field type_name
@@ -224,7 +292,7 @@ func file_api_network_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_network_proto_rawDesc), len(file_api_network_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

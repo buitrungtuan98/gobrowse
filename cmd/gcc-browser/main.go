@@ -26,7 +26,8 @@ import (
 
 // Orchestrator manages the IPC lifecycle.
 type Orchestrator struct {
-	daemonPath string
+	daemonPath    string
+	activeDaemons map[string]string // Tracks role -> target address (ip:port)
 }
 
 func NewOrchestrator() *Orchestrator {
@@ -37,13 +38,28 @@ func NewOrchestrator() *Orchestrator {
 	}
 	dir := filepath.Dir(ex)
 	return &Orchestrator{
-		daemonPath: filepath.Join(dir, "gcc-daemon"),
+		daemonPath:    filepath.Join(dir, "gcc-daemon"),
+		activeDaemons: make(map[string]string),
 	}
+}
+
+// GetDaemonAddress retrieves the dynamically assigned localhost port address for a pooled daemon role
+func (o *Orchestrator) GetDaemonAddress(role string) string {
+	return o.activeDaemons[role]
 }
 
 // SpawnProcess starts a child daemon and returns the gRPC connection
 func (o *Orchestrator) SpawnProcess(role string) (*grpc.ClientConn, error) {
-	cmd := exec.Command(o.daemonPath, "--role", role, "--port", "0")
+	return o.SpawnProcessWithArgs(role, nil)
+}
+
+func (o *Orchestrator) SpawnProcessWithArgs(role string, extraArgs []string) (*grpc.ClientConn, error) {
+	args := []string{"--role", role, "--port", "0"}
+	if len(extraArgs) > 0 {
+		args = append(args, extraArgs...)
+	}
+
+	cmd := exec.Command(o.daemonPath, args...)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -83,6 +99,8 @@ func (o *Orchestrator) SpawnProcess(role string) (*grpc.ClientConn, error) {
 
 	port := strings.TrimPrefix(line, "PORT:")
 	target := fmt.Sprintf("127.0.0.1:%s", port)
+
+	o.activeDaemons[role] = target
 
 	log.Printf("[Orchestrator] Connected to %s process at %s", role, target)
 

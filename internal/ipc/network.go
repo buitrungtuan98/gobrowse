@@ -67,3 +67,34 @@ func (a *NetworkIPCAdapter) ConfigureDNS(provider gcc.DNSConfig) error {
 	// Not implemented via RPC in this milestone yet
 	return nil
 }
+
+func (a *NetworkIPCAdapter) OpenWebSocket(url string, onMessage func(string), onClose func()) (func(string), error) {
+	stream, err := a.client.OpenWebSocket(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("failed to open grpc stream: %w", err)
+	}
+
+	// Send initial handshake
+	if err := stream.Send(&api.WSMessage{Url: url}); err != nil {
+		return nil, err
+	}
+
+	// Listener loop
+	go func() {
+		for {
+			msg, err := stream.Recv()
+			if err != nil || msg.IsClose {
+				onClose()
+				return
+			}
+			onMessage(string(msg.Payload))
+		}
+	}()
+
+	// Return a Sender closure
+	sender := func(payload string) {
+		stream.Send(&api.WSMessage{Payload: []byte(payload)})
+	}
+
+	return sender, nil
+}

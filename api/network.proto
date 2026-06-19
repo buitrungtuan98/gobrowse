@@ -6,6 +6,7 @@ option go_package = "github.com/go-chromium-core/gcc/api";
 
 service NetworkService {
   rpc FetchResource (FetchRequest) returns (FetchResponse);
+  rpc OpenWebSocket (stream WSMessage) returns (stream WSMessage);
 }
 
 message FetchRequest {
@@ -20,4 +21,10 @@ message FetchResponse {
   map<string, string> headers = 2;
   bytes body = 3;
   string error_message = 4;
+}
+
+message WSMessage {
+  string url = 1; // Only used in the first handshake request
+  bytes payload = 2;
+  bool is_close = 3;
 }

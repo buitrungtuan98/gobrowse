@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion7
 
 const (
 	NetworkService_FetchResource_FullMethodName = "/api.NetworkService/FetchResource"
+	NetworkService_OpenWebSocket_FullMethodName = "/api.NetworkService/OpenWebSocket"
 )
 
 // NetworkServiceClient is the client API for NetworkService service.
@@ -27,6 +28,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type NetworkServiceClient interface {
 	FetchResource(ctx context.Context, in *FetchRequest, opts ...grpc.CallOption) (*FetchResponse, error)
+	OpenWebSocket(ctx context.Context, opts ...grpc.CallOption) (NetworkService_OpenWebSocketClient, error)
 }
 
 type networkServiceClient struct {
@@ -46,11 +48,43 @@ func (c *networkServiceClient) FetchResource(ctx context.Context, in *FetchReque
 	return out, nil
 }
 
+func (c *networkServiceClient) OpenWebSocket(ctx context.Context, opts ...grpc.CallOption) (NetworkService_OpenWebSocketClient, error) {
+	stream, err := c.cc.NewStream(ctx, &NetworkService_ServiceDesc.Streams[0], NetworkService_OpenWebSocket_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &networkServiceOpenWebSocketClient{stream}
+	return x, nil
+}
+
+type NetworkService_OpenWebSocketClient interface {
+	Send(*WSMessage) error
+	Recv() (*WSMessage, error)
+	grpc.ClientStream
+}
+
+type networkServiceOpenWebSocketClient struct {
+	grpc.ClientStream
+}
+
+func (x *networkServiceOpenWebSocketClient) Send(m *WSMessage) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *networkServiceOpenWebSocketClient) Recv() (*WSMessage, error) {
+	m := new(WSMessage)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // NetworkServiceServer is the server API for NetworkService service.
 // All implementations must embed UnimplementedNetworkServiceServer
 // for forward compatibility
 type NetworkServiceServer interface {
 	FetchResource(context.Context, *FetchRequest) (*FetchResponse, error)
+	OpenWebSocket(NetworkService_OpenWebSocketServer) error
 	mustEmbedUnimplementedNetworkServiceServer()
 }
 
@@ -60,6 +94,9 @@ type UnimplementedNetworkServiceServer struct {
 
 func (UnimplementedNetworkServiceServer) FetchResource(context.Context, *FetchRequest) (*FetchResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FetchResource not implemented")
+}
+func (UnimplementedNetworkServiceServer) OpenWebSocket(NetworkService_OpenWebSocketServer) error {
+	return status.Errorf(codes.Unimplemented, "method OpenWebSocket not implemented")
 }
 func (UnimplementedNetworkServiceServer) mustEmbedUnimplementedNetworkServiceServer() {}
 
@@ -92,6 +129,32 @@ func _NetworkService_FetchResource_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _NetworkService_OpenWebSocket_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(NetworkServiceServer).OpenWebSocket(&networkServiceOpenWebSocketServer{stream})
+}
+
+type NetworkService_OpenWebSocketServer interface {
+	Send(*WSMessage) error
+	Recv() (*WSMessage, error)
+	grpc.ServerStream
+}
+
+type networkServiceOpenWebSocketServer struct {
+	grpc.ServerStream
+}
+
+func (x *networkServiceOpenWebSocketServer) Send(m *WSMessage) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *networkServiceOpenWebSocketServer) Recv() (*WSMessage, error) {
+	m := new(WSMessage)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // NetworkService_ServiceDesc is the grpc.ServiceDesc for NetworkService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -104,6 +167,13 @@ var NetworkService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _NetworkService_FetchResource_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "OpenWebSocket",
+			Handler:       _NetworkService_OpenWebSocket_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "api/network.proto",
 }

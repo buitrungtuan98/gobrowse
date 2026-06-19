@@ -114,3 +114,58 @@ func (d *DocumentWrapper) GetElementById(id string) *ElementWrapper {
 		id:     id,
 	}
 }
+
+// WSSender represents a function closure to send websocket payloads
+type WSSender func(payload string)
+
+// WebSocketProvider bridges JS creation of websockets over to the IPC adapter
+type WebSocketProvider interface {
+	OpenWebSocket(url string, onMessage func(string), onClose func()) (func(string), error)
+}
+
+// WebSocketWrapper represents the `WebSocket` class in JS.
+type WebSocketWrapper struct {
+	engine   *GojaEngine
+	provider WebSocketProvider
+	sendFunc WSSender
+
+	// JS Callbacks
+	Onmessage func(interface{}) `goja:"onmessage"`
+	Onclose   func()            `goja:"onclose"`
+}
+
+func (w *WebSocketWrapper) Send(data string) {
+	if w.sendFunc != nil {
+		w.sendFunc(data)
+	}
+}
+
+// InjectWebSocketFactory gives the VM a `createWebSocket(url)` global function
+func (e *GojaEngine) InjectWebSocketFactory(provider WebSocketProvider) {
+	e.BindGlobalAPI("createWebSocket", func(url string) *WebSocketWrapper {
+		wrapper := &WebSocketWrapper{
+			engine:   e,
+			provider: provider,
+		}
+
+		sender, err := provider.OpenWebSocket(url, func(msg string) {
+			// Trigger JS callback
+			if wrapper.Onmessage != nil {
+				// Execute callback safely in JS VM context
+				// Note: in full implementation, this should be dispatched on the main JS event loop
+				// to avoid concurrent map read/write in goja runtime.
+				wrapper.Onmessage(msg)
+			}
+		}, func() {
+			if wrapper.Onclose != nil {
+				wrapper.Onclose()
+			}
+		})
+
+		if err == nil {
+			wrapper.sendFunc = sender
+		}
+
+		return wrapper
+	})
+}
