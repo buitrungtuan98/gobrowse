@@ -8,14 +8,16 @@ import (
 )
 
 // ComputeLayout walks the DOM tree and applies styles from the CSSOM tree to build a LayoutTree.
-func ComputeLayout(dom *gcc.DOMTree, css *gcc.CSSOMTree) (*gcc.LayoutTree, error) {
+func ComputeLayout(dom *gcc.DOMTree, css *gcc.CSSOMTree, viewportWidth, viewportHeight float64) (*gcc.LayoutTree, error) {
 	if dom == nil || dom.Root == nil {
 		return nil, nil
 	}
 
-	// Initialize layout with standard desktop width
-	defaultWidth := 800.0
-	rootLayout := computeNode(dom.Root, css, 0, 0, defaultWidth, nil)
+	if viewportWidth <= 0 {
+		viewportWidth = 800.0
+	}
+
+	rootLayout := computeNode(dom.Root, css, 0, 0, viewportWidth, nil)
 	return rootLayout, nil
 }
 
@@ -75,7 +77,11 @@ func computeNode(domNode *gcc.DOMNode, css *gcc.CSSOMTree, currentX, currentY fl
 	if domNode.Type == "span" || domNode.Type == "a" || domNode.Type == "text" {
 		displayType = "inline"
 	}
-	layout.Styles["display"] = displayType
+
+	// Only set default if it wasn't already set by inline styles
+	if _, ok := layout.Styles["display"]; !ok {
+		layout.Styles["display"] = displayType
+	}
 
 	if css != nil {
 		// Very basic cascade: Element -> Class -> ID
@@ -85,9 +91,59 @@ func computeNode(domNode *gcc.DOMNode, css *gcc.CSSOMTree, currentX, currentY fl
 			}
 		}
 
+		// Helper to check pseudo-classes
+		hasPseudoState := func(pseudo string) bool {
+			stateAttr := "_" + strings.TrimPrefix(pseudo, ":")
+			for _, attrMap := range domNode.Attr {
+				if val, exists := attrMap[stateAttr]; exists && val == "true" {
+					return true
+				}
+			}
+			return false
+		}
+
+		// Helper to match selectors including pseudo-classes
+		matchSelector := func(baseSelector, ruleSelector string) bool {
+			if ruleSelector == baseSelector {
+				return true
+			}
+			if strings.HasPrefix(ruleSelector, baseSelector+":") {
+				pseudo := strings.TrimPrefix(ruleSelector, baseSelector)
+				return hasPseudoState(pseudo)
+			}
+			return false
+		}
+
+		// Helper to check media queries against current viewport
+		matchMedia := func(query string) bool {
+			if query == "" {
+				return true
+			}
+			// Basic max-width / min-width evaluator
+			if strings.Contains(query, "max-width:") {
+				parts := strings.Split(query, "max-width:")
+				if len(parts) == 2 {
+					valStr := strings.TrimSpace(strings.TrimSuffix(parts[1], ")"))
+					if maxW, err := parseDimension(valStr); err == nil {
+						return availableWidth <= maxW
+					}
+				}
+			}
+			if strings.Contains(query, "min-width:") {
+				parts := strings.Split(query, "min-width:")
+				if len(parts) == 2 {
+					valStr := strings.TrimSpace(strings.TrimSuffix(parts[1], ")"))
+					if minW, err := parseDimension(valStr); err == nil {
+						return availableWidth >= minW
+					}
+				}
+			}
+			return false // Unrecognized query fails match
+		}
+
 		// 1. Tag matching
 		for _, rule := range css.Rules {
-			if rule.Selector == domNode.Type {
+			if matchMedia(rule.MediaQuery) && matchSelector(domNode.Type, rule.Selector) {
 				applyRule(rule)
 			}
 		}
@@ -98,7 +154,7 @@ func computeNode(domNode *gcc.DOMNode, css *gcc.CSSOMTree, currentX, currentY fl
 				classArray := strings.Split(classes, " ")
 				for _, class := range classArray {
 					for _, rule := range css.Rules {
-						if rule.Selector == "."+class {
+						if matchMedia(rule.MediaQuery) && matchSelector("."+class, rule.Selector) {
 							applyRule(rule)
 						}
 					}
@@ -110,7 +166,7 @@ func computeNode(domNode *gcc.DOMNode, css *gcc.CSSOMTree, currentX, currentY fl
 		for _, attrMap := range domNode.Attr {
 			if id, exists := attrMap["id"]; exists {
 				for _, rule := range css.Rules {
-					if rule.Selector == "#"+id {
+					if matchMedia(rule.MediaQuery) && matchSelector("#"+id, rule.Selector) {
 						applyRule(rule)
 					}
 				}
@@ -125,9 +181,14 @@ func computeNode(domNode *gcc.DOMNode, css *gcc.CSSOMTree, currentX, currentY fl
 
 	// 2. Dimension Calculation (Block Formatting Context)
 	// Default to available width for blocks, 0 for inline
-	if displayType == "block" || domNode.Type == "document" || domNode.Type == "html" || domNode.Type == "body" {
+	if displayType == "block" || displayType == "flex" || displayType == "grid" || domNode.Type == "document" || domNode.Type == "html" || domNode.Type == "body" {
 		layout.W = availableWidth
-		layout.Styles["display"] = "block" // normalize structural elements
+		if domNode.Type == "document" || domNode.Type == "html" || domNode.Type == "body" {
+			if displayType == "" || displayType == "inline" {
+				layout.Styles["display"] = "block" // normalize structural elements
+				displayType = "block"
+			}
+		}
 	} else {
 		layout.W = 0
 	}
@@ -191,79 +252,222 @@ func computeNode(domNode *gcc.DOMNode, css *gcc.CSSOMTree, currentX, currentY fl
 	childY := currentY
 	maxInlineHeight := 0.0
 
-	isFlex := layout.Styles["display"] == "flex"
+	// displayType is already defined earlier, just retrieve the current one
+	displayType = layout.Styles["display"]
+	isFlex := displayType == "flex"
+	isGrid := displayType == "grid"
 	flexDirection := layout.Styles["flex-direction"]
 	if flexDirection == "" {
 		flexDirection = "row" // default flex direction
 	}
 
-	for _, childLayout := range computedChildren {
-		if childLayout != nil {
-			layout.Children = append(layout.Children, childLayout)
+	if isGrid {
+		// Basic Grid Implementation
+		gridColsStr := layout.Styles["grid-template-columns"]
+		gridRowsStr := layout.Styles["grid-template-rows"]
+		gapStr := layout.Styles["gap"]
+		if gapStr == "" {
+			gapStr = layout.Styles["grid-gap"]
+		}
 
-			childDisplay := childLayout.Styles["display"]
+		gap := 0.0
+		if gapStr != "" {
+			gap, _ = parseDimension(gapStr)
+		}
 
-			if isFlex {
-				if flexDirection == "row" {
-					// Flex Row: stack horizontally
+		cols := strings.Fields(gridColsStr)
+		rows := strings.Fields(gridRowsStr)
+
+		colWidths := make([]float64, len(cols))
+		for i, c := range cols {
+			w, _ := parseDimension(c)
+			colWidths[i] = w
+		}
+
+		rowHeights := make([]float64, len(rows))
+		for i, r := range rows {
+			h, _ := parseDimension(r)
+			rowHeights[i] = h
+		}
+
+		currentCol := 0
+		currentRow := 0
+
+		for _, childLayout := range computedChildren {
+			if childLayout != nil {
+				layout.Children = append(layout.Children, childLayout)
+
+				// Parse grid-column and grid-row overrides
+				colSpan := 1
+				rowSpan := 1
+				colStart := currentCol
+				rowStart := currentRow
+
+				if colStr, ok := childLayout.Styles["grid-column"]; ok {
+					parts := strings.Split(colStr, "/")
+					if len(parts) > 0 {
+						if c, err := strconv.Atoi(strings.TrimSpace(parts[0])); err == nil {
+							colStart = c - 1 // 1-based to 0-based
+						}
+					}
+					if len(parts) > 1 {
+						if c, err := strconv.Atoi(strings.TrimSpace(parts[1])); err == nil {
+							colSpan = c - colStart - 1 // End line minus start line
+						} else if strings.Contains(parts[1], "span") {
+							spanParts := strings.Fields(parts[1])
+							if len(spanParts) == 2 {
+								if s, err := strconv.Atoi(spanParts[1]); err == nil {
+									colSpan = s
+								}
+							}
+						}
+					}
+				}
+
+				if rowStr, ok := childLayout.Styles["grid-row"]; ok {
+					parts := strings.Split(rowStr, "/")
+					if len(parts) > 0 {
+						if r, err := strconv.Atoi(strings.TrimSpace(parts[0])); err == nil {
+							rowStart = r - 1
+						}
+					}
+					if len(parts) > 1 {
+						if r, err := strconv.Atoi(strings.TrimSpace(parts[1])); err == nil {
+							rowSpan = r - rowStart - 1
+						} else if strings.Contains(parts[1], "span") {
+							spanParts := strings.Fields(parts[1])
+							if len(spanParts) == 2 {
+								if s, err := strconv.Atoi(spanParts[1]); err == nil {
+									rowSpan = s
+								}
+							}
+						}
+					}
+				}
+
+				// Calculate position
+				cx := currentX
+				for i := 0; i < colStart && i < len(colWidths); i++ {
+					cx += colWidths[i] + gap
+				}
+
+				cy := currentY
+				for i := 0; i < rowStart && i < len(rowHeights); i++ {
+					cy += rowHeights[i] + gap
+				}
+
+				// Calculate size
+				cw := 0.0
+				for i := colStart; i < colStart+colSpan && i < len(colWidths); i++ {
+					cw += colWidths[i]
+					if i > colStart {
+						cw += gap
+					}
+				}
+
+				ch := 0.0
+				for i := rowStart; i < rowStart+rowSpan && i < len(rowHeights); i++ {
+					ch += rowHeights[i]
+					if i > rowStart {
+						ch += gap
+					}
+				}
+
+				childLayout.X = cx
+				childLayout.Y = cy
+				childLayout.W = cw
+				childLayout.H = ch
+				offsetSubTree(childLayout, cx, cy)
+
+				// Auto-placement progression
+				currentCol = colStart + colSpan
+				if currentCol >= len(colWidths) {
+					currentCol = 0
+					currentRow = rowStart + 1
+				} else {
+					currentRow = rowStart
+				}
+
+				// Keep track of grid container height
+				if ch+cy-currentY > layout.H {
+					layout.H = ch + cy - currentY
+				}
+			}
+		}
+	} else {
+		for _, childLayout := range computedChildren {
+			if childLayout != nil {
+				layout.Children = append(layout.Children, childLayout)
+
+				childDisplay := childLayout.Styles["display"]
+
+				if isFlex {
+					if flexDirection == "row" {
+						// Flex Row: stack horizontally
+						childLayout.X = childX
+						childLayout.Y = currentY
+
+						// Recursively offset any deep children inside this container due to positional shifting
+						offsetSubTree(childLayout, childX, currentY)
+
+						childX += childLayout.W
+						if childLayout.H > layout.H {
+							layout.H = childLayout.H
+						}
+					} else {
+						// Flex Column: stack vertically
+						childLayout.X = currentX
+						childLayout.Y = childY
+						offsetSubTree(childLayout, currentX, childY)
+						childY += childLayout.H
+					}
+				} else if childDisplay == "inline" {
+					// Inline Formatting Context: Wrap horizontally
+					if childX+childLayout.W > currentX+layout.W && layout.W > 0 {
+						childX = currentX
+						childY += maxInlineHeight
+						maxInlineHeight = 0
+					}
+
 					childLayout.X = childX
-					childLayout.Y = currentY
-
-					// Recursively offset any deep children inside this container due to positional shifting
-					offsetSubTree(childLayout, childX, currentY)
+					childLayout.Y = childY
+					offsetSubTree(childLayout, childX, childY)
 
 					childX += childLayout.W
-					if childLayout.H > layout.H {
-						layout.H = childLayout.H
+					if childLayout.H > maxInlineHeight {
+						maxInlineHeight = childLayout.H
 					}
 				} else {
-					// Flex Column: stack vertically
+					// Block Formatting Context: Stack vertically
+					if childX > currentX {
+						childY += maxInlineHeight
+						childX = currentX
+						maxInlineHeight = 0
+					}
+
 					childLayout.X = currentX
 					childLayout.Y = childY
 					offsetSubTree(childLayout, currentX, childY)
+
 					childY += childLayout.H
 				}
-			} else if childDisplay == "inline" {
-				// Inline Formatting Context: Wrap horizontally
-				if childX+childLayout.W > currentX+layout.W && layout.W > 0 {
-					childX = currentX
-					childY += maxInlineHeight
-					maxInlineHeight = 0
-				}
-
-				childLayout.X = childX
-				childLayout.Y = childY
-				offsetSubTree(childLayout, childX, childY)
-
-				childX += childLayout.W
-				if childLayout.H > maxInlineHeight {
-					maxInlineHeight = childLayout.H
-				}
-			} else {
-				// Block Formatting Context: Stack vertically
-				if childX > currentX {
-					childY += maxInlineHeight
-					childX = currentX
-					maxInlineHeight = 0
-				}
-
-				childLayout.X = currentX
-				childLayout.Y = childY
-				offsetSubTree(childLayout, currentX, childY)
-
-				childY += childLayout.H
 			}
+		}
+
+		// Flush remaining inline height
+		if childX > currentX {
+			childY += maxInlineHeight
+		}
+
+		// Update the height of the parent based on children flow if not explicitly set
+		if _, ok := layout.Styles["height"]; !ok {
+			layout.H = childY - currentY
 		}
 	}
 
-	// Flush remaining inline height
-	if childX > currentX {
-		childY += maxInlineHeight
-	}
-
-	// Update the height of the parent based on children flow if not explicitly set
-	if _, ok := layout.Styles["height"]; !ok {
-		layout.H = childY - currentY
+	// Make sure grid layout overrides container height correctly
+	if layout.Styles["display"] == "grid" && layout.H < 0 {
+		layout.H = 0
 	}
 
 	return layout

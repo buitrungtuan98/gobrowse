@@ -142,7 +142,7 @@ func (w *RendererServerWrapper) ComputeLayout(ctx context.Context, req *api.Layo
 		return &api.LayoutResponse{ErrorMessage: "Failed to decode CSSOM payload"}, nil
 	}
 
-	layout, err := w.stack.ComputeLayout(&dom, &css)
+	layout, err := w.stack.ComputeLayout(&dom, &css, 800, 600)
 	if err != nil {
 		return &api.LayoutResponse{ErrorMessage: err.Error()}, nil
 	}

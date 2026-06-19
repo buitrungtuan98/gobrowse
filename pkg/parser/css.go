@@ -23,46 +23,73 @@ func ParseCSS(r io.Reader) (*gcc.CSSOMTree, error) {
 
 	cssContent := buf.String()
 
-	// Quick and dirty parser: split by closing brace to isolate blocks
-	blocks := strings.Split(cssContent, "}")
-	for _, block := range blocks {
-		block = strings.TrimSpace(block)
-		if block == "" {
-			continue
-		}
+	// Quick and dirty parser: find blocks properly to handle nested blocks like @media
+	var currentMedia string
+	inMediaBlock := false
 
-		// Expected block format: `selector { key: value; key: value; `
-		parts := strings.Split(block, "{")
-		if len(parts) != 2 {
-			continue // Skip malformed blocks
-		}
+	// Basic lexing loop
+	var buffer string
+	for i := 0; i < len(cssContent); i++ {
+		char := cssContent[i]
 
-		selector := strings.TrimSpace(parts[0])
-		stylesStr := strings.TrimSpace(parts[1])
+		if char == '{' {
+			header := strings.TrimSpace(buffer)
+			buffer = ""
 
-		rule := gcc.CSSRule{
-			Selector: selector,
-			Styles:   make(map[string]string),
-		}
-
-		// Parse key-value declarations split by semicolons
-		declarations := strings.Split(stylesStr, ";")
-		for _, decl := range declarations {
-			decl = strings.TrimSpace(decl)
-			if decl == "" {
+			if strings.HasPrefix(header, "@media") {
+				currentMedia = strings.TrimSpace(strings.TrimPrefix(header, "@media"))
+				inMediaBlock = true
 				continue
 			}
 
-			kv := strings.SplitN(decl, ":", 2)
-			if len(kv) == 2 {
-				key := strings.TrimSpace(kv[0])
-				value := strings.TrimSpace(kv[1])
-				rule.Styles[key] = value
+			// We are at a standard rule block start
+			// Parse the styles until '}'
+			var stylesBuf string
+			nestedBraces := 1
+			for i++; i < len(cssContent); i++ {
+				if cssContent[i] == '{' {
+					nestedBraces++
+				} else if cssContent[i] == '}' {
+					nestedBraces--
+					if nestedBraces == 0 {
+						break
+					}
+				}
+				stylesBuf += string(cssContent[i])
 			}
-		}
 
-		if len(rule.Styles) > 0 {
-			rules = append(rules, rule)
+			rule := gcc.CSSRule{
+				Selector:   header,
+				Styles:     make(map[string]string),
+				MediaQuery: currentMedia,
+			}
+
+			declarations := strings.Split(stylesBuf, ";")
+			for _, decl := range declarations {
+				decl = strings.TrimSpace(decl)
+				if decl == "" {
+					continue
+				}
+
+				kv := strings.SplitN(decl, ":", 2)
+				if len(kv) == 2 {
+					key := strings.TrimSpace(kv[0])
+					value := strings.TrimSpace(kv[1])
+					rule.Styles[key] = value
+				}
+			}
+
+			if len(rule.Styles) > 0 {
+				rules = append(rules, rule)
+			}
+		} else if char == '}' {
+			if inMediaBlock {
+				inMediaBlock = false
+				currentMedia = ""
+			}
+			buffer = ""
+		} else {
+			buffer += string(char)
 		}
 	}
 

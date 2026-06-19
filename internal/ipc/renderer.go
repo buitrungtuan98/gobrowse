@@ -18,7 +18,7 @@ func NewRendererIPCAdapter(client api.RendererServiceClient) *RendererIPCAdapter
 	return &RendererIPCAdapter{client: client}
 }
 
-func (a *RendererIPCAdapter) ComputeLayout(dom *gcc.DOMTree, css *gcc.CSSOMTree) (*gcc.LayoutTree, error) {
+func (a *RendererIPCAdapter) ComputeLayout(dom *gcc.DOMTree, css *gcc.CSSOMTree, viewportWidth, viewportHeight float64) (*gcc.LayoutTree, error) {
 	// For IPC, we must serialize the complex structures to JSON (or a compact binary format).
 	domPayload, _ := json.Marshal(dom)
 	cssPayload, _ := json.Marshal(css)

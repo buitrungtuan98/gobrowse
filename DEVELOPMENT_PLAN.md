@@ -119,3 +119,35 @@ This document outlines the granular phases, architectural components, and detail
 - [x] **Task 12.1 - WASM Engine Integration (`pkg/javascript`):**
   * Integrate `tetratelabs/wazero` to provide a pure Go WebAssembly runtime.
   * Bridge the Goja JS VM with Wazero, allowing JavaScript to instantiate and call exported WASM functions.
+
+## Phase 13: Advanced CSS Engine & Layout Enhancements (Future)
+**Goal:** Expand CSS support to handle modern web layouts and interactive states.
+- [ ] **Task 13.1 - CSS Grid Basics (`pkg/render`):**
+  * Implement standard grid formatting contexts alongside existing flexbox/block layouts.
+- [x] **Task 13.2 - Pseudo-classes Support (`pkg/render` & `cmd/gcc-browser`):**
+  * Add support for interactive pseudo-classes like `:hover`, `:active`, and `:focus`.
+  * Trigger style recalculation on mouse/keyboard events.
+- [x] **Task 13.3 - Media Queries (`pkg/parser` & `pkg/render`):**
+  * Support basic `@media` rules for responsive viewport dimensions.
+  * Re-evaluate CSS cascades dynamically when the window is resized.
+
+## Phase 14: Cookie Management & Session State (Future)
+**Goal:** Implement robust state management bridging the Network and Execution daemons, while strictly enforcing security contexts.
+- [ ] **Task 14.1 - Clearnet Cookie Jar (`pkg/network`):**
+  * Implement persistent cookie tracking for `ModeRegular` fetch requests.
+  * Include cookies automatically in HTTP request headers.
+- [ ] **Task 14.2 - Ephemeral Tor State (`pkg/network`):**
+  * Ensure `ModeTor` drops all state across sessions.
+  * Implement memory-only isolation for sessions under Tor.
+- [ ] **Task 14.3 - JS `document.cookie` Bridge (`pkg/javascript` & `api/`):**
+  * Allow JavaScript scripts to read and write cookies via gRPC.
+  * Respect the `DisableCookies` flag in `FetchOptions`.
+
+## Phase 15: Developer Tools & Basic Media Support (Future)
+**Goal:** Provide visibility into the inner workings of the DOM for debugging and prepare for media playback.
+- [ ] **Task 15.1 - IPC DOM Inspector (`cmd/gcc-browser` & `cmd/gcc-daemon`):**
+  * Build a diagnostic side-panel or separate UI process to visualize the parsed `DOMTree` and `LayoutTree`.
+  * Send introspection events via gRPC.
+- [ ] **Task 15.2 - Media Tags Parsing (`pkg/parser`):**
+  * Add lexical token support for `<video>` and `<audio>` tags.
+  * Define core data structures to map media streams in the DOM.

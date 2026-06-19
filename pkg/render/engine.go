@@ -13,8 +13,8 @@ func NewRenderStack() *RenderStack {
 }
 
 // ComputeLayout acts as the facade for calculating bounding geometry and layout trees.
-func (r *RenderStack) ComputeLayout(dom *gcc.DOMTree, css *gcc.CSSOMTree) (*gcc.LayoutTree, error) {
-	return ComputeLayout(dom, css)
+func (r *RenderStack) ComputeLayout(dom *gcc.DOMTree, css *gcc.CSSOMTree, viewportWidth, viewportHeight float64) (*gcc.LayoutTree, error) {
+	return ComputeLayout(dom, css, viewportWidth, viewportHeight)
 }
 
 // Paint traverses the layout tree and rasterizes elements to the given canvas surface.
