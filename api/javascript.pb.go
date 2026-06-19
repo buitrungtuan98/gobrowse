@@ -333,6 +333,154 @@ func (x *EventResponse) GetErrorMessage() string {
 	return ""
 }
 
+type MutationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MutationRequest) Reset() {
+	*x = MutationRequest{}
+	mi := &file_api_javascript_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MutationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MutationRequest) ProtoMessage() {}
+
+func (x *MutationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_javascript_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MutationRequest.ProtoReflect.Descriptor instead.
+func (*MutationRequest) Descriptor() ([]byte, []int) {
+	return file_api_javascript_proto_rawDescGZIP(), []int{6}
+}
+
+type DOMMutation struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Property      string                 `protobuf:"bytes,2,opt,name=property,proto3" json:"property,omitempty"` // e.g., "color", "width", "innerText"
+	Value         string                 `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DOMMutation) Reset() {
+	*x = DOMMutation{}
+	mi := &file_api_javascript_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DOMMutation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DOMMutation) ProtoMessage() {}
+
+func (x *DOMMutation) ProtoReflect() protoreflect.Message {
+	mi := &file_api_javascript_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DOMMutation.ProtoReflect.Descriptor instead.
+func (*DOMMutation) Descriptor() ([]byte, []int) {
+	return file_api_javascript_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *DOMMutation) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *DOMMutation) GetProperty() string {
+	if x != nil {
+		return x.Property
+	}
+	return ""
+}
+
+func (x *DOMMutation) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+type MutationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Mutations     []*DOMMutation         `protobuf:"bytes,1,rep,name=mutations,proto3" json:"mutations,omitempty"`
+	ErrorMessage  string                 `protobuf:"bytes,2,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MutationResponse) Reset() {
+	*x = MutationResponse{}
+	mi := &file_api_javascript_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MutationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MutationResponse) ProtoMessage() {}
+
+func (x *MutationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_javascript_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MutationResponse.ProtoReflect.Descriptor instead.
+func (*MutationResponse) Descriptor() ([]byte, []int) {
+	return file_api_javascript_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *MutationResponse) GetMutations() []*DOMMutation {
+	if x != nil {
+		return x.Mutations
+	}
+	return nil
+}
+
+func (x *MutationResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
 var File_api_javascript_proto protoreflect.FileDescriptor
 
 const file_api_javascript_proto_rawDesc = "" +
@@ -356,11 +504,20 @@ const file_api_javascript_proto_rawDesc = "" +
 	"\apayload\x18\x03 \x01(\tR\apayload\"N\n" +
 	"\rEventResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12#\n" +
-	"\rerror_message\x18\x02 \x01(\tR\ferrorMessage2\xbb\x01\n" +
+	"\rerror_message\x18\x02 \x01(\tR\ferrorMessage\"\x11\n" +
+	"\x0fMutationRequest\"X\n" +
+	"\vDOMMutation\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x1a\n" +
+	"\bproperty\x18\x02 \x01(\tR\bproperty\x12\x14\n" +
+	"\x05value\x18\x03 \x01(\tR\x05value\"g\n" +
+	"\x10MutationResponse\x12.\n" +
+	"\tmutations\x18\x01 \x03(\v2\x10.api.DOMMutationR\tmutations\x12#\n" +
+	"\rerror_message\x18\x02 \x01(\tR\ferrorMessage2\xfb\x01\n" +
 	"\x11JavaScriptService\x128\n" +
 	"\rExecuteScript\x12\x12.api.ScriptRequest\x1a\x13.api.ScriptResponse\x124\n" +
 	"\rBindGlobalAPI\x12\x10.api.BindRequest\x1a\x11.api.BindResponse\x126\n" +
-	"\rDispatchEvent\x12\x11.api.EventRequest\x1a\x12.api.EventResponseB%Z#github.com/go-chromium-core/gcc/apib\x06proto3"
+	"\rDispatchEvent\x12\x11.api.EventRequest\x1a\x12.api.EventResponse\x12>\n" +
+	"\x0fGetDOMMutations\x12\x14.api.MutationRequest\x1a\x15.api.MutationResponseB%Z#github.com/go-chromium-core/gcc/apib\x06proto3"
 
 var (
 	file_api_javascript_proto_rawDescOnce sync.Once
@@ -374,27 +531,33 @@ func file_api_javascript_proto_rawDescGZIP() []byte {
 	return file_api_javascript_proto_rawDescData
 }
 
-var file_api_javascript_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_api_javascript_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_api_javascript_proto_goTypes = []any{
-	(*ScriptRequest)(nil),  // 0: api.ScriptRequest
-	(*ScriptResponse)(nil), // 1: api.ScriptResponse
-	(*BindRequest)(nil),    // 2: api.BindRequest
-	(*BindResponse)(nil),   // 3: api.BindResponse
-	(*EventRequest)(nil),   // 4: api.EventRequest
-	(*EventResponse)(nil),  // 5: api.EventResponse
+	(*ScriptRequest)(nil),    // 0: api.ScriptRequest
+	(*ScriptResponse)(nil),   // 1: api.ScriptResponse
+	(*BindRequest)(nil),      // 2: api.BindRequest
+	(*BindResponse)(nil),     // 3: api.BindResponse
+	(*EventRequest)(nil),     // 4: api.EventRequest
+	(*EventResponse)(nil),    // 5: api.EventResponse
+	(*MutationRequest)(nil),  // 6: api.MutationRequest
+	(*DOMMutation)(nil),      // 7: api.DOMMutation
+	(*MutationResponse)(nil), // 8: api.MutationResponse
 }
 var file_api_javascript_proto_depIdxs = []int32{
-	0, // 0: api.JavaScriptService.ExecuteScript:input_type -> api.ScriptRequest
-	2, // 1: api.JavaScriptService.BindGlobalAPI:input_type -> api.BindRequest
-	4, // 2: api.JavaScriptService.DispatchEvent:input_type -> api.EventRequest
-	1, // 3: api.JavaScriptService.ExecuteScript:output_type -> api.ScriptResponse
-	3, // 4: api.JavaScriptService.BindGlobalAPI:output_type -> api.BindResponse
-	5, // 5: api.JavaScriptService.DispatchEvent:output_type -> api.EventResponse
-	3, // [3:6] is the sub-list for method output_type
-	0, // [0:3] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	7, // 0: api.MutationResponse.mutations:type_name -> api.DOMMutation
+	0, // 1: api.JavaScriptService.ExecuteScript:input_type -> api.ScriptRequest
+	2, // 2: api.JavaScriptService.BindGlobalAPI:input_type -> api.BindRequest
+	4, // 3: api.JavaScriptService.DispatchEvent:input_type -> api.EventRequest
+	6, // 4: api.JavaScriptService.GetDOMMutations:input_type -> api.MutationRequest
+	1, // 5: api.JavaScriptService.ExecuteScript:output_type -> api.ScriptResponse
+	3, // 6: api.JavaScriptService.BindGlobalAPI:output_type -> api.BindResponse
+	5, // 7: api.JavaScriptService.DispatchEvent:output_type -> api.EventResponse
+	8, // 8: api.JavaScriptService.GetDOMMutations:output_type -> api.MutationResponse
+	5, // [5:9] is the sub-list for method output_type
+	1, // [1:5] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_api_javascript_proto_init() }
@@ -408,7 +571,7 @@ func file_api_javascript_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_javascript_proto_rawDesc), len(file_api_javascript_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

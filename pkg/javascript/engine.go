@@ -4,18 +4,52 @@ import (
 	"fmt"
 
 	"github.com/dop251/goja"
+	"sync"
 )
 
 // GojaEngine is the concrete implementation of gcc.JSEngine using the goja VM.
 type GojaEngine struct {
-	vm *goja.Runtime
+	vm            *goja.Runtime
+	mu            sync.Mutex
+	mutationQueue []DOMMutation
 }
 
 // NewGojaEngine initializes a new JavaScript sandbox environment.
 func NewGojaEngine() *GojaEngine {
-	return &GojaEngine{
-		vm: goja.New(),
+	engine := &GojaEngine{
+		vm:            goja.New(),
+		mutationQueue: make([]DOMMutation, 0),
 	}
+
+	// Inject the global document object
+	engine.BindGlobalAPI("document", &DocumentWrapper{engine: engine})
+
+	return engine
+}
+
+func (e *GojaEngine) queueMutation(nodeID, prop, val string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.mutationQueue = append(e.mutationQueue, DOMMutation{
+		NodeID:   nodeID,
+		Property: prop,
+		Value:    val,
+	})
+}
+
+// FlushMutations retrieves and clears the pending DOM changes.
+func (e *GojaEngine) FlushMutations() []DOMMutation {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if len(e.mutationQueue) == 0 {
+		return nil
+	}
+
+	copied := make([]DOMMutation, len(e.mutationQueue))
+	copy(copied, e.mutationQueue)
+	e.mutationQueue = e.mutationQueue[:0]
+	return copied
 }
 
 // ExecuteScript runs an arbitrary block of JavaScript code inside the VM.
@@ -49,4 +83,34 @@ func (e *GojaEngine) DispatchEvent(nodeID string, eventType string, payload stri
 	_, _ = e.vm.RunString(script)
 
 	return nil
+}
+
+// DOMMutation represents a change requested by JS.
+type DOMMutation struct {
+	NodeID   string
+	Property string
+	Value    string
+}
+
+// ElementWrapper allows JS to interact with a specific DOM Node.
+type ElementWrapper struct {
+	engine *GojaEngine
+	id     string
+}
+
+// SetAttribute simulates element.setAttribute("style", ...) or element.color = ...
+func (e *ElementWrapper) SetAttribute(prop, val string) {
+	e.engine.queueMutation(e.id, prop, val)
+}
+
+// DocumentWrapper represents the global `document` object in JS.
+type DocumentWrapper struct {
+	engine *GojaEngine
+}
+
+func (d *DocumentWrapper) GetElementById(id string) *ElementWrapper {
+	return &ElementWrapper{
+		engine: d.engine,
+		id:     id,
+	}
 }

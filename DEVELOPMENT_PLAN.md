@@ -93,3 +93,14 @@ This document outlines the granular phases, architectural components, and detail
 - [x] **Task 9.2 - Omnibox (URL Bar) Navigation (`cmd/gcc-browser`):**
   * Manage URL input state and caret behavior.
   * Trigger real-world end-to-end `Fetch -> Parse -> Render` pipelines via the IPC daemons when the user presses Enter.
+
+## Phase 10: JavaScript DOM API Bridge (Future)
+**Goal:** Enable dynamic web interactivity by bridging the isolated JavaScript sandbox with the Orchestrator's DOM layout tree.
+- [x] **Task 10.1 - JavaScript DOM Bindings (`pkg/javascript`):**
+  * Inject standard `document` objects into the Goja VM.
+  * Implement `document.getElementById` and element style mutation trackers.
+- [x] **Task 10.2 - Bidirectional IPC via Polling (`api/`, `internal/ipc`):**
+  * Define `GetDOMMutations` RPC to extract pending DOM changes from the JS Daemon without complex bidirectional streaming.
+- [x] **Task 10.3 - Rendering Updates (`cmd/gcc-browser`):**
+  * Poll the JS Daemon during the OpenGL loop.
+  * Apply received mutations to the Orchestrator's DOMTree, mark the context as dirty, and trigger a hardware repaint.

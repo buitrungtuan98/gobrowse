@@ -19,9 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	JavaScriptService_ExecuteScript_FullMethodName = "/api.JavaScriptService/ExecuteScript"
-	JavaScriptService_BindGlobalAPI_FullMethodName = "/api.JavaScriptService/BindGlobalAPI"
-	JavaScriptService_DispatchEvent_FullMethodName = "/api.JavaScriptService/DispatchEvent"
+	JavaScriptService_ExecuteScript_FullMethodName   = "/api.JavaScriptService/ExecuteScript"
+	JavaScriptService_BindGlobalAPI_FullMethodName   = "/api.JavaScriptService/BindGlobalAPI"
+	JavaScriptService_DispatchEvent_FullMethodName   = "/api.JavaScriptService/DispatchEvent"
+	JavaScriptService_GetDOMMutations_FullMethodName = "/api.JavaScriptService/GetDOMMutations"
 )
 
 // JavaScriptServiceClient is the client API for JavaScriptService service.
@@ -31,6 +32,7 @@ type JavaScriptServiceClient interface {
 	ExecuteScript(ctx context.Context, in *ScriptRequest, opts ...grpc.CallOption) (*ScriptResponse, error)
 	BindGlobalAPI(ctx context.Context, in *BindRequest, opts ...grpc.CallOption) (*BindResponse, error)
 	DispatchEvent(ctx context.Context, in *EventRequest, opts ...grpc.CallOption) (*EventResponse, error)
+	GetDOMMutations(ctx context.Context, in *MutationRequest, opts ...grpc.CallOption) (*MutationResponse, error)
 }
 
 type javaScriptServiceClient struct {
@@ -68,6 +70,15 @@ func (c *javaScriptServiceClient) DispatchEvent(ctx context.Context, in *EventRe
 	return out, nil
 }
 
+func (c *javaScriptServiceClient) GetDOMMutations(ctx context.Context, in *MutationRequest, opts ...grpc.CallOption) (*MutationResponse, error) {
+	out := new(MutationResponse)
+	err := c.cc.Invoke(ctx, JavaScriptService_GetDOMMutations_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // JavaScriptServiceServer is the server API for JavaScriptService service.
 // All implementations must embed UnimplementedJavaScriptServiceServer
 // for forward compatibility
@@ -75,6 +86,7 @@ type JavaScriptServiceServer interface {
 	ExecuteScript(context.Context, *ScriptRequest) (*ScriptResponse, error)
 	BindGlobalAPI(context.Context, *BindRequest) (*BindResponse, error)
 	DispatchEvent(context.Context, *EventRequest) (*EventResponse, error)
+	GetDOMMutations(context.Context, *MutationRequest) (*MutationResponse, error)
 	mustEmbedUnimplementedJavaScriptServiceServer()
 }
 
@@ -90,6 +102,9 @@ func (UnimplementedJavaScriptServiceServer) BindGlobalAPI(context.Context, *Bind
 }
 func (UnimplementedJavaScriptServiceServer) DispatchEvent(context.Context, *EventRequest) (*EventResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DispatchEvent not implemented")
+}
+func (UnimplementedJavaScriptServiceServer) GetDOMMutations(context.Context, *MutationRequest) (*MutationResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDOMMutations not implemented")
 }
 func (UnimplementedJavaScriptServiceServer) mustEmbedUnimplementedJavaScriptServiceServer() {}
 
@@ -158,6 +173,24 @@ func _JavaScriptService_DispatchEvent_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _JavaScriptService_GetDOMMutations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MutationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(JavaScriptServiceServer).GetDOMMutations(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: JavaScriptService_GetDOMMutations_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(JavaScriptServiceServer).GetDOMMutations(ctx, req.(*MutationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // JavaScriptService_ServiceDesc is the grpc.ServiceDesc for JavaScriptService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -176,6 +209,10 @@ var JavaScriptService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DispatchEvent",
 			Handler:    _JavaScriptService_DispatchEvent_Handler,
+		},
+		{
+			MethodName: "GetDOMMutations",
+			Handler:    _JavaScriptService_GetDOMMutations_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

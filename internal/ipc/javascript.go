@@ -69,3 +69,32 @@ func (a *JavascriptIPCAdapter) DispatchEvent(nodeID string, eventType string, pa
 
 	return nil
 }
+
+// DOMMutation maps the IPC struct to a localized Go struct
+type DOMMutation struct {
+	NodeID   string
+	Property string
+	Value    string
+}
+
+// PollMutations checks the daemon for any queued DOM changes requested by JS.
+func (a *JavascriptIPCAdapter) PollMutations() ([]DOMMutation, error) {
+	resp, err := a.client.GetDOMMutations(context.Background(), &api.MutationRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("ipc poll mutations failed: %w", err)
+	}
+	if resp.ErrorMessage != "" {
+		return nil, fmt.Errorf("daemon js mutation error: %s", resp.ErrorMessage)
+	}
+
+	mutations := make([]DOMMutation, 0, len(resp.Mutations))
+	for _, m := range resp.Mutations {
+		mutations = append(mutations, DOMMutation{
+			NodeID:   m.NodeId,
+			Property: m.Property,
+			Value:    m.Value,
+		})
+	}
+
+	return mutations, nil
+}

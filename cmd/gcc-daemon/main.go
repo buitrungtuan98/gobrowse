@@ -139,6 +139,23 @@ func (w *ParserServerWrapper) ParseCSS(ctx context.Context, req *api.ParseReques
 	return &api.ParseCSSResponse{CssomPayload: string(payload)}, nil
 }
 
+func (w *JSServerWrapper) GetDOMMutations(ctx context.Context, req *api.MutationRequest) (*api.MutationResponse, error) {
+	mutations := w.engine.FlushMutations()
+
+	resp := &api.MutationResponse{
+		Mutations: make([]*api.DOMMutation, 0, len(mutations)),
+	}
+
+	for _, m := range mutations {
+		resp.Mutations = append(resp.Mutations, &api.DOMMutation{
+			NodeId:   m.NodeID,
+			Property: m.Property,
+			Value:    m.Value,
+		})
+	}
+
+	return resp, nil
+}
 func main() {
 	flag.Parse()
 

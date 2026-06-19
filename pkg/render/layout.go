@@ -48,6 +48,20 @@ func computeNode(domNode *gcc.DOMNode, css *gcc.CSSOMTree, currentX, currentY fl
 
 	// 1. CSS Cascade & Inheritance
 	// Inherit specific styles from parent
+
+	// Apply inline styles first (highest priority)
+	for _, attr := range domNode.Attr {
+		if styleStr, ok := attr["style"]; ok {
+			rules := strings.Split(styleStr, ";")
+			for _, rule := range rules {
+				kv := strings.Split(rule, ":")
+				if len(kv) == 2 {
+					layout.Styles[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+				}
+			}
+		}
+	}
+
 	if parentStyles != nil {
 		for k, v := range parentStyles {
 			if inheritable[k] {

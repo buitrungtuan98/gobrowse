@@ -8,6 +8,7 @@ service JavaScriptService {
   rpc ExecuteScript (ScriptRequest) returns (ScriptResponse);
   rpc BindGlobalAPI (BindRequest) returns (BindResponse);
   rpc DispatchEvent (EventRequest) returns (EventResponse);
+  rpc GetDOMMutations (MutationRequest) returns (MutationResponse);
 }
 
 message ScriptRequest {
@@ -37,5 +38,18 @@ message EventRequest {
 
 message EventResponse {
   bool success = 1;
+  string error_message = 2;
+}
+
+message MutationRequest {}
+
+message DOMMutation {
+  string node_id = 1;
+  string property = 2; // e.g., "color", "width", "innerText"
+  string value = 3;
+}
+
+message MutationResponse {
+  repeated DOMMutation mutations = 1;
   string error_message = 2;
 }

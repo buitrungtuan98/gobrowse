@@ -312,6 +312,38 @@ func buildBrowserUI(ctx *BrowserContext, urlBuffer string, urlFocused bool) (*gc
 	return dom, css
 }
 
+// applyMutation recursively traverses the DOM to apply styles
+func applyMutation(node *gcc.DOMNode, mutation ipc.DOMMutation) bool {
+	if node == nil {
+		return false
+	}
+
+	// Assuming Node.Type is the ID for this Mock
+	// (In a real engine, we check node.Attr["id"])
+	if node.Type == mutation.NodeID {
+		// Ensure styles are applied as a class/id proxy or inline style
+		found := false
+		for _, attr := range node.Attr {
+			if _, ok := attr["style"]; ok {
+				// Naive style append for mock
+				attr["style"] = attr["style"] + ";" + mutation.Property + ":" + mutation.Value
+				found = true
+				break
+			}
+		}
+		if !found {
+			node.Attr = append(node.Attr, map[string]string{"style": mutation.Property + ":" + mutation.Value})
+		}
+		return true // Applied
+	}
+
+	for _, child := range node.Children {
+		if applyMutation(child, mutation) {
+			return true
+		}
+	}
+	return false
+}
 func main() {
 	log.Println("[GCC Orchestrator] Booting Multi-Tab Pipeline...")
 
@@ -436,8 +468,21 @@ func main() {
 
 	log.Println("[Orchestrator] Entering hardware rendering loop. Close window to exit.")
 	for !canvas.ShouldClose() {
-		// Zero-Allocation / Dirty checking
 		activeTab := browserCtx.GetActiveTab()
+
+		// 10.3 Phase 10: Poll JS Daemon for DOM Mutations
+		if activeTab != nil && activeTab.JSAdapter != nil && activeTab.DOM != nil {
+			mutations, err := activeTab.JSAdapter.PollMutations()
+			if err == nil && len(mutations) > 0 {
+				log.Printf("[Orchestrator] Received %d DOM mutations from JS Daemon", len(mutations))
+				for _, mut := range mutations {
+					if applyMutation(activeTab.DOM.Root, mut) {
+						activeTab.IsDirty = true
+						needsChromeUpdate = true
+					}
+				}
+			}
+		}
 
 		// If tab layout is dirty or Chrome changed (active tab switched)
 		// We rebuild the Chrome UI tree and re-layout
