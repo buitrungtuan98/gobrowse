@@ -6,6 +6,7 @@ require (
 	github.com/dop251/goja v0.0.0-20231027120936-b396bb4c349d
 	github.com/go-gl/gl v0.0.0-20260331235117-4566fea9a276
 	github.com/go-gl/glfw/v3.3/glfw v0.0.0-20260406072232-3ac4aa2bb164
+	github.com/tetratelabs/wazero v1.12.0
 	golang.org/x/image v0.15.0
 	golang.org/x/net v0.24.0
 	google.golang.org/grpc v1.62.0

@@ -24,6 +24,9 @@ func NewGojaEngine() *GojaEngine {
 	// Inject the global document object
 	engine.BindGlobalAPI("document", &DocumentWrapper{engine: engine})
 
+	// Inject WebAssembly execution engine
+	engine.InjectWasmEngine()
+
 	return engine
 }
 

@@ -113,3 +113,9 @@ This document outlines the granular phases, architectural components, and detail
   * Utilize `golang.org/x/net/websocket` to handle the RFC 6455 protocol to the outside world.
 - [x] **Task 11.3 - JS WebSocket API (`pkg/javascript`):**
   * Bind a `WebSocket` object into the Goja environment, allowing scripts to call `.send()` and trigger `.onmessage()` callbacks.
+
+## Phase 12: WebAssembly (WASM) Execution (Future)
+**Goal:** Enhance the isolated scripting environment to execute high-performance binary WASM modules alongside JavaScript.
+- [x] **Task 12.1 - WASM Engine Integration (`pkg/javascript`):**
+  * Integrate `tetratelabs/wazero` to provide a pure Go WebAssembly runtime.
+  * Bridge the Goja JS VM with Wazero, allowing JavaScript to instantiate and call exported WASM functions.
