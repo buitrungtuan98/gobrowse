@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package api;
+
+option go_package = "github.com/go-chromium-core/gcc/api";
+
+service JavaScriptService {
+  rpc ExecuteScript (ScriptRequest) returns (ScriptResponse);
+  rpc BindGlobalAPI (BindRequest) returns (BindResponse);
+  rpc DispatchEvent (EventRequest) returns (EventResponse);
+  rpc GetDOMMutations (MutationRequest) returns (MutationResponse);
+}
+
+message ScriptRequest {
+  string script = 1;
+}
+
+message ScriptResponse {
+  string result_payload = 1; // JSON serialized result
+  string error_message = 2;
+}
+
+message BindRequest {
+  string api_name = 1;
+  string implementation_payload = 2;
+}
+
+message BindResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+message EventRequest {
+  string node_id = 1;
+  string event_type = 2;
+  string payload = 3;
+}
+
+message EventResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+message MutationRequest {}
+
+message DOMMutation {
+  string node_id = 1;
+  string property = 2; // e.g., "color", "width", "innerText"
+  string value = 3;
+}
+
+message MutationResponse {
+  repeated DOMMutation mutations = 1;
+  string error_message = 2;
+}

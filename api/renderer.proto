@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package api;
+
+option go_package = "github.com/go-chromium-core/gcc/api";
+
+service RendererService {
+  rpc ComputeLayout (LayoutRequest) returns (LayoutResponse);
+  rpc PaintLayout (PaintRequest) returns (PaintResponse);
+}
+
+message LayoutRequest {
+  string dom_payload = 1; // JSON serialized DOM for IPC
+  string css_payload = 2; // JSON serialized CSSOM for IPC
+}
+
+message LayoutResponse {
+  string layout_tree_payload = 1; // JSON serialized LayoutTree
+  string error_message = 2;
+}
+
+message PaintRequest {
+  string layout_tree_payload = 1;
+}
+
+message PaintResponse {
+  bool success = 1;
+  string error_message = 2;
+}
