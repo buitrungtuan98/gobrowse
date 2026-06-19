@@ -57,8 +57,9 @@ type CSSOMTree struct {
 }
 
 type CSSRule struct {
-	Selector string
-	Styles   map[string]string
+	Selector   string
+	Styles     map[string]string
+	MediaQuery string // Optional condition, e.g., "(max-width: 600px)"
 }
 
 // LayoutTree links DOM structure with computed geometric style dimensions.
@@ -97,7 +98,7 @@ type ParserEngine interface {
 
 // RenderEngine computes visual layout metrics and rasterizes elements to viewport.
 type RenderEngine interface {
-	ComputeLayout(dom *DOMTree, css *CSSOMTree) (*LayoutTree, error)
+	ComputeLayout(dom *DOMTree, css *CSSOMTree, viewportWidth, viewportHeight float64) (*LayoutTree, error)
 	Paint(layout *LayoutTree, canvas TargetCanvas) error
 }
 

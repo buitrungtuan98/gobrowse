@@ -139,7 +139,7 @@ type ParserEngine interface {
 
 // RenderEngine computes visual layout metrics and rasterizes elements to viewport.
 type RenderEngine interface {
-	ComputeLayout(dom *DOMTree, css *CSSOMTree) (*LayoutTree, error)
+	ComputeLayout(dom *DOMTree, css *CSSOMTree, viewportWidth, viewportHeight float64) (*LayoutTree, error)
 	Paint(layout *LayoutTree, canvas TargetCanvas) error
 }
 
@@ -316,7 +316,7 @@ import (
 
 type TerminalRenderer struct{}
 
-func (tr *TerminalRenderer) ComputeLayout(dom *gcc.DOMTree, css *gcc.CSSOMTree) (*gcc.LayoutTree, error) {
+func (tr *TerminalRenderer) ComputeLayout(dom *gcc.DOMTree, css *gcc.CSSOMTree, viewportWidth, viewportHeight float64) (*gcc.LayoutTree, error) {
 	// Construct basic structure nodes mapped directly into geometry bounding containers
 	return &gcc.LayoutTree{
 		Node: dom.Root,

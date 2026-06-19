@@ -29,7 +29,7 @@ func TestLayoutAndPaint(t *testing.T) {
 	}
 
 	stack := NewRenderStack()
-	layout, err := stack.ComputeLayout(dom, css)
+	layout, err := stack.ComputeLayout(dom, css, 800, 600)
 	if err != nil {
 		t.Fatalf("ComputeLayout failed: %v", err)
 	}

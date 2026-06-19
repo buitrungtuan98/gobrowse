@@ -22,7 +22,7 @@ func TestGridBasics(t *testing.T) {
 
 	css := &gcc.CSSOMTree{}
 
-	layout, err := ComputeLayout(dom, css)
+	layout, err := ComputeLayout(dom, css, 800, 600)
 	if err != nil {
 		t.Fatalf("ComputeLayout error: %v", err)
 	}

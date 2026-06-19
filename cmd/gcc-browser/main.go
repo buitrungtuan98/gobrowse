@@ -255,7 +255,7 @@ func fetchAndParse(ctx *BrowserContext, tab *Tab, ts *httptest.Server) {
 	tab.IsDirty = true
 }
 
-func buildBrowserUI(ctx *BrowserContext, urlBuffer string, urlFocused bool) (*gcc.DOMTree, *gcc.CSSOMTree) {
+func buildBrowserUI(ctx *BrowserContext, urlBuffer string, urlFocused bool, winWidth, winHeight int) (*gcc.DOMTree, *gcc.CSSOMTree) {
 	// Construct the browser Chrome (Tab bar) wrapping the active tab's content
 
 	tabNodes := make([]*gcc.DOMNode, 0)
@@ -304,14 +304,14 @@ func buildBrowserUI(ctx *BrowserContext, urlBuffer string, urlFocused bool) (*gc
 		},
 	}
 
-	cssCombined := `
-		window { background-color: #E5E5E5; width: 800px; height: 600px; display: block; }
-		#tabs { background-color: #CCCCCC; width: 800px; height: 40px; display: flex; flex-direction: row; }
+	cssCombined := fmt.Sprintf(`
+		window { background-color: #E5E5E5; width: %dpx; height: %dpx; display: block; }
+		#tabs { background-color: #CCCCCC; width: %dpx; height: 40px; display: flex; flex-direction: row; }
 		tab { background-color: #999999; width: 150px; height: 40px; }
 		.active { background-color: #FFFFFF; width: 150px; height: 40px; }
-		#url { background-color: #FFFFFF; width: 800px; height: 30px; display: block; border-bottom: 2px solid #333; }
-		#content { background-color: #FFFFFF; width: 800px; height: 530px; display: block; }
-	`
+		#url { background-color: #FFFFFF; width: %dpx; height: 30px; display: block; border-bottom: 2px solid #333; }
+		#content { background-color: #FFFFFF; width: %dpx; height: %dpx; display: block; }
+	`, winWidth, winHeight, winWidth, winWidth, winWidth, winHeight-70)
 
 	css := &gcc.CSSOMTree{}
 	if ctx.ParserAdapter != nil {
@@ -419,6 +419,8 @@ func main() {
 		urlBuffer = activeTab.URL
 	}
 
+	winWidth, winHeight := 800, 600
+
 	// Track Chrome UI updates
 	needsChromeUpdate := true
 
@@ -477,6 +479,12 @@ func main() {
 				}
 			}
 		}
+	})
+
+	canvas.SetOnResize(func(w, h int) {
+		winWidth = w
+		winHeight = h
+		needsChromeUpdate = true
 	})
 
 	canvas.SetOnMouseUp(func(x, y float64) {
@@ -555,12 +563,12 @@ func main() {
 		// We rebuild the Chrome UI tree and re-layout
 		// Recompute when states change or tabs switch
 		if needsChromeUpdate || (activeTab != nil && activeTab.IsDirty) {
-			chromeDom, chromeCss := buildBrowserUI(browserCtx, urlBuffer, urlFocused)
+			chromeDom, chromeCss := buildBrowserUI(browserCtx, urlBuffer, urlFocused, winWidth, winHeight)
 
 			// Compute layout for the entire browser window using the local Render Engine
 			// In a full implementation, the inner viewport is computed by the IPC RenderAdapter,
 			// and the Orchestrator composites the frames. For this POC, we compute the Chrome locally.
-			layoutTree, err := localLayoutEngine.ComputeLayout(chromeDom, chromeCss)
+			layoutTree, err := localLayoutEngine.ComputeLayout(chromeDom, chromeCss, float64(winWidth), float64(winHeight))
 			if err == nil && layoutTree != nil {
 				localLayoutEngine.Paint(layoutTree, canvas)
 				chromeLayout = layoutTree

@@ -8,14 +8,16 @@ import (
 )
 
 // ComputeLayout walks the DOM tree and applies styles from the CSSOM tree to build a LayoutTree.
-func ComputeLayout(dom *gcc.DOMTree, css *gcc.CSSOMTree) (*gcc.LayoutTree, error) {
+func ComputeLayout(dom *gcc.DOMTree, css *gcc.CSSOMTree, viewportWidth, viewportHeight float64) (*gcc.LayoutTree, error) {
 	if dom == nil || dom.Root == nil {
 		return nil, nil
 	}
 
-	// Initialize layout with standard desktop width
-	defaultWidth := 800.0
-	rootLayout := computeNode(dom.Root, css, 0, 0, defaultWidth, nil)
+	if viewportWidth <= 0 {
+		viewportWidth = 800.0
+	}
+
+	rootLayout := computeNode(dom.Root, css, 0, 0, viewportWidth, nil)
 	return rootLayout, nil
 }
 
@@ -112,9 +114,36 @@ func computeNode(domNode *gcc.DOMNode, css *gcc.CSSOMTree, currentX, currentY fl
 			return false
 		}
 
+		// Helper to check media queries against current viewport
+		matchMedia := func(query string) bool {
+			if query == "" {
+				return true
+			}
+			// Basic max-width / min-width evaluator
+			if strings.Contains(query, "max-width:") {
+				parts := strings.Split(query, "max-width:")
+				if len(parts) == 2 {
+					valStr := strings.TrimSpace(strings.TrimSuffix(parts[1], ")"))
+					if maxW, err := parseDimension(valStr); err == nil {
+						return availableWidth <= maxW
+					}
+				}
+			}
+			if strings.Contains(query, "min-width:") {
+				parts := strings.Split(query, "min-width:")
+				if len(parts) == 2 {
+					valStr := strings.TrimSpace(strings.TrimSuffix(parts[1], ")"))
+					if minW, err := parseDimension(valStr); err == nil {
+						return availableWidth >= minW
+					}
+				}
+			}
+			return false // Unrecognized query fails match
+		}
+
 		// 1. Tag matching
 		for _, rule := range css.Rules {
-			if matchSelector(domNode.Type, rule.Selector) {
+			if matchMedia(rule.MediaQuery) && matchSelector(domNode.Type, rule.Selector) {
 				applyRule(rule)
 			}
 		}
@@ -125,7 +154,7 @@ func computeNode(domNode *gcc.DOMNode, css *gcc.CSSOMTree, currentX, currentY fl
 				classArray := strings.Split(classes, " ")
 				for _, class := range classArray {
 					for _, rule := range css.Rules {
-						if matchSelector("."+class, rule.Selector) {
+						if matchMedia(rule.MediaQuery) && matchSelector("."+class, rule.Selector) {
 							applyRule(rule)
 						}
 					}
@@ -137,7 +166,7 @@ func computeNode(domNode *gcc.DOMNode, css *gcc.CSSOMTree, currentX, currentY fl
 		for _, attrMap := range domNode.Attr {
 			if id, exists := attrMap["id"]; exists {
 				for _, rule := range css.Rules {
-					if matchSelector("#"+id, rule.Selector) {
+					if matchMedia(rule.MediaQuery) && matchSelector("#"+id, rule.Selector) {
 						applyRule(rule)
 					}
 				}

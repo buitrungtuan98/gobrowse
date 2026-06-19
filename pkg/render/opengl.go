@@ -40,6 +40,7 @@ type OpenGLCanvas struct {
 	onMouseMove   func(x, y float64)
 	onChar        func(char rune)
 	onKey         func(key int, action int)
+		onResize      func(width, height int)
 }
 
 const vertexShaderSource = `
@@ -143,8 +144,22 @@ func NewOpenGLCanvas(width, height int, title string) (*OpenGLCanvas, error) {
 		}
 	})
 
+		window.SetFramebufferSizeCallback(func(w *glfw.Window, width int, height int) {
+			gl.Viewport(0, 0, int32(width), int32(height))
+			canvas.width = width
+			canvas.height = height
+			if canvas.onResize != nil {
+				canvas.onResize(width, height)
+			}
+		})
+
 	return canvas, nil
 }
+
+	// SetOnResize registers a callback for window resize events.
+	func (c *OpenGLCanvas) SetOnResize(cb func(w, h int)) {
+		c.onResize = cb
+	}
 
 // SetOnMouseClick registers a callback for mouse down events.
 func (c *OpenGLCanvas) SetOnMouseClick(cb func(x, y float64)) {

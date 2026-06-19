@@ -127,7 +127,7 @@ This document outlines the granular phases, architectural components, and detail
 - [x] **Task 13.2 - Pseudo-classes Support (`pkg/render` & `cmd/gcc-browser`):**
   * Add support for interactive pseudo-classes like `:hover`, `:active`, and `:focus`.
   * Trigger style recalculation on mouse/keyboard events.
-- [ ] **Task 13.3 - Media Queries (`pkg/parser` & `pkg/render`):**
+- [x] **Task 13.3 - Media Queries (`pkg/parser` & `pkg/render`):**
   * Support basic `@media` rules for responsive viewport dimensions.
   * Re-evaluate CSS cascades dynamically when the window is resized.
 
